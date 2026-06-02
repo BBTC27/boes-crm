@@ -1865,9 +1865,24 @@ function emailAllRegistrants(){
     : allRegistrants();
   var emails = registrants.map(function(r){ return r.email; }).filter(Boolean);
   if(!emails.length){toast('No email addresses found in this roster.','err');return;}
-  var course = selected || 'Course Roster';
-  var mailto = 'mailto:terry@boesandboes.com?bcc='+encodeURIComponent(emails.join(','))+'&subject='+encodeURIComponent('['+course+'] ');
-  window.location.href = mailto;
+  var emailStr = emails.join(', ');
+
+  // Build modal
+  var overlay = document.createElement('div');
+  overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center';
+  overlay.innerHTML='<div style="background:#0f2540;border:1px solid #1e3a5f;border-radius:12px;padding:28px;max-width:560px;width:90%">'+
+    '<div style="font-size:16px;font-weight:700;color:#fff;margin-bottom:6px">✉ Email Roster ('+emails.length+' recipients)</div>'+
+    '<div style="font-size:12px;color:#8899aa;margin-bottom:14px">Copy these addresses and paste into the BCC field in Gmail.</div>'+
+    '<textarea id="email-copy-box" style="width:100%;height:100px;background:#0a1628;border:1px solid #1e3a5f;border-radius:6px;color:#cdd6f4;font-size:12px;padding:10px;resize:none;box-sizing:border-box">'+emailStr+'</textarea>'+
+    '<div style="display:flex;gap:10px;margin-top:14px">'+
+    '<button onclick="(function(){var t=document.getElementById(\'email-copy-box\');t.select();navigator.clipboard.writeText(t.value).then(function(){document.getElementById(\'copy-confirm\').style.display=\'\';});})()" style="background:#4ade80;color:#0a1628;border:none;padding:10px 20px;border-radius:6px;font-weight:700;cursor:pointer;font-size:14px">📋 Copy to Clipboard</button>'+
+    '<a href="https://mail.google.com/mail/?view=cm&fs=1&to=terry@boesandboes.com" target="_blank" style="background:transparent;border:1px solid #4ade80;color:#4ade80;padding:10px 20px;border-radius:6px;font-weight:700;cursor:pointer;font-size:14px;text-decoration:none;display:flex;align-items:center">Open Gmail</a>'+
+    '<button onclick="this.closest(\'div[style]\').remove()" style="background:transparent;border:1px solid #1e3a5f;color:#8899aa;padding:10px 20px;border-radius:6px;cursor:pointer;font-size:14px;margin-left:auto">Close</button>'+
+    '</div>'+
+    '<div id="copy-confirm" style="display:none;margin-top:10px;color:#4ade80;font-size:13px">✓ Copied! Now paste into BCC field in Gmail.</div>'+
+    '</div>';
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', function(e){ if(e.target===overlay) overlay.remove(); });
 }
 
 function exportRosterCSV(){
