@@ -324,6 +324,7 @@ nav{padding:16px 0;flex:1;overflow-y:auto;}
             <select class="form-select" id="roster-course-filter" onchange="renderRosters()" style="width:240px;font-size:13px">
               <option value="">— All Courses —</option>
             </select>
+            <button class="btn btn-outline btn-sm" onclick="emailAllRegistrants()">✉ Email All</button>
             <button class="btn btn-outline btn-sm" onclick="exportRosterCSV()">⬇ Export CSV</button>
             <button class="btn btn-primary btn-sm" onclick="pollRosterSheet(true)">↻ Sync Now</button>
             <button class="btn btn-primary btn-sm" onclick="addManualRegistrant()">+ Add</button>
@@ -1854,6 +1855,19 @@ function saveManualRegistrant(){
     source:'manual'
   });
   saveAll();closeModal('registrant');renderRosters();toast('Registrant added ✓');
+}
+
+function emailAllRegistrants(){
+  var filter = document.getElementById('roster-course-filter');
+  var selected = filter ? filter.value : '';
+  var registrants = selected
+    ? (state.rosters[rosterKey(selected)]||{registrants:[]}).registrants
+    : allRegistrants();
+  var emails = registrants.map(function(r){ return r.email; }).filter(Boolean);
+  if(!emails.length){toast('No email addresses found in this roster.','err');return;}
+  var course = selected || 'Course Roster';
+  var mailto = 'mailto:terry@boesandboes.com?bcc='+encodeURIComponent(emails.join(','))+'&subject='+encodeURIComponent('['+course+'] ');
+  window.location.href = mailto;
 }
 
 function exportRosterCSV(){
