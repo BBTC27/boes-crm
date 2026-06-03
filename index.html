@@ -192,7 +192,7 @@ nav{padding:16px 0;flex:1;overflow-y:auto;}
     <div class="nav-item" onclick="showPage('customfields')" id="nav-customfields"><span class="nav-icon">✦</span> Custom Fields</div>
     <div class="nav-item" onclick="showPage('setup')" id="nav-setup"><span class="nav-icon">⚙</span> Settings</div>
   </nav>
-  <div class="sidebar-footer">Emergency Preparedness CRM<br><span style="color:var(--green)">v3.1</span> · Boes & Boes 2025<br><button onclick="manualBackupAll()" style="margin-top:8px;width:100%;padding:6px;background:#1D9E75;color:#fff;border:none;border-radius:4px;font-size:11px;cursor:pointer;">&#128190; Backup Data Now</button></div>
+  <div class="sidebar-footer">Emergency Preparedness CRM<br><span style="color:var(--green)">v3.1</span> · Boes & Boes 2025<br><button onclick="manualBackupAll()" style="margin-top:8px;width:100%;padding:6px;background:#1D9E75;color:#fff;border:none;border-radius:4px;font-size:11px;cursor:pointer;">&#128190; Backup Data Now</button><button onclick="restoreBackup()" style="margin-top:6px;width:100%;padding:6px;background:transparent;color:#1D9E75;border:1px solid #1D9E75;border-radius:4px;font-size:11px;cursor:pointer;">&#8635; Restore from Backup</button></div>
 </nav>
 <div id="main">
   <div class="topbar">
@@ -357,19 +357,14 @@ nav{padding:16px 0;flex:1;overflow-y:auto;}
       </div>
       <!-- Sync Settings -->
       <div class="panel">
-        <div class="panel-header">Jotform Auto-Sync Settings</div>
+        <div class="panel-header">Auto-Sync Status</div>
         <div class="panel-body" style="padding:16px 20px">
-          <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px">
-            Paste your Google Apps Script Web App URL below. The CRM polls every 60 seconds and automatically adds new Jotform registrations. Back up your roster data using the <strong>Backup Data Now</strong> button in the sidebar and save the file to Google Drive.
+          <p style="font-size:13px;color:var(--text-muted);margin-bottom:6px">
+            New Jotform registrations flow automatically into the live Google Sheet, and this roster pulls from that Sheet on load and every 60 seconds. Use <strong>↻ Sync Now</strong> at the top to refresh immediately.
           </p>
-          <div style="display:flex;gap:10px;margin-bottom:12px">
-            <input type="text" class="form-input" id="roster-script-url" placeholder="https://script.google.com/macros/s/.../exec" style="flex:1">
-            <button class="btn btn-primary btn-sm" onclick="saveRosterScriptUrl()">Save &amp; Activate</button>
-          </div>
-          <div id="roster-sync-status" style="font-size:13px;margin-bottom:12px"></div>
-          <div style="display:flex;gap:10px">
-            <button class="btn btn-outline btn-sm" onclick="clearRosterSyncedFlag()">Reset Sync Markers</button>
-          </div>
+          <p style="font-size:13px;color:var(--text-muted)">
+            Back up your data with the <strong>Backup Data Now</strong> button in the sidebar and save the file to Google Drive.
+          </p>
         </div>
       </div>
     </div>
@@ -1588,95 +1583,104 @@ renderAll();
 // ROSTER MODULE — Jotform → CRM auto-sync
 // ══════════════════════════════════════════════════════════
 
-var rosterPollInterval = null;
-var rosterScriptUrl = '';
+// Published Google Sheet CSV feed (BB Course Rosters → Registrants tab)
+var ROSTER_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSWr8RSCzR9ulcNbiTBsoJJ4hLWkzq4IQUv6HTriG4fuIEnOwvgO5eYUG3PizGMUBJB2HGC0i3i1frv/pub?gid=0&single=true&output=csv';
 
-function loadRosterConfig(){
-  try{
-    var cfg = localStorage.getItem('boes_roster_config');
-    if(cfg){ var c = JSON.parse(cfg); rosterScriptUrl = c.scriptUrl||''; }
-    var el = document.getElementById('roster-script-url');
-    if(el && rosterScriptUrl) el.value = rosterScriptUrl;
-  }catch(e){}
-}
-
-function saveRosterScriptUrl(){
-  var url = (document.getElementById('roster-script-url').value||'').trim();
-  rosterScriptUrl = url;
-  localStorage.setItem('boes_roster_config', JSON.stringify({scriptUrl:url}));
-  var st = document.getElementById('roster-sync-status');
-  if(url){
-    st.innerHTML='<span style="color:var(--green)">✓ Sync URL saved. Polling every 60 seconds.</span>';
-    startRosterPoll();
-  } else {
-    st.innerHTML='<span style="color:var(--text-muted)">No URL set — sync disabled.</span>';
-    stopRosterPoll();
+// Minimal CSV parser that handles quoted fields and commas inside quotes
+function parseCSV(text){
+  var rows = [];
+  var row = [];
+  var field = '';
+  var inQuotes = false;
+  for(var i=0; i<text.length; i++){
+    var c = text[i];
+    if(inQuotes){
+      if(c === '"'){
+        if(text[i+1] === '"'){ field += '"'; i++; }
+        else { inQuotes = false; }
+      } else { field += c; }
+    } else {
+      if(c === '"'){ inQuotes = true; }
+      else if(c === ','){ row.push(field); field = ''; }
+      else if(c === '\n'){ row.push(field); rows.push(row); row = []; field = ''; }
+      else if(c === '\r'){ /* skip */ }
+      else { field += c; }
+    }
   }
-}
-
-function startRosterPoll(){
-  stopRosterPoll();
-  if(!rosterScriptUrl) return;
-  pollRosterSheet(false);
-  rosterPollInterval = setInterval(function(){ pollRosterSheet(false); }, 60000);
-}
-
-function stopRosterPoll(){
-  if(rosterPollInterval){ clearInterval(rosterPollInterval); rosterPollInterval=null; }
+  if(field.length || row.length){ row.push(field); rows.push(row); }
+  return rows;
 }
 
 function pollRosterSheet(manual){
-  if(!rosterScriptUrl){
-    if(manual) showRosterSyncBar('No sync URL configured. Add it in Sync Settings below.','warn');
-    return;
-  }
   if(manual) showRosterSyncBar('Syncing with Google Sheet...','info');
-  fetch(rosterScriptUrl + '?action=getNew')
-    .then(function(r){ return r.json(); })
-    .then(function(rows){
-      if(!rows || !rows.length){
-        if(manual) showRosterSyncBar('All caught up — no new registrations.','ok');
-        return;
-      }
-      var added = 0;
-      rows.forEach(function(row){
-        var key = rosterKey(row.course);
-        if(!state.rosters[key]) state.rosters[key] = {course: row.course, registrants:[]};
-        // dedupe by email+name
-        var exists = state.rosters[key].registrants.find(function(r){
-          return r.email && r.email.toLowerCase() === (row.email||'').toLowerCase() && r.name === row.name;
+  fetch(ROSTER_CSV_URL + '&t=' + Date.now())  // cache-bust
+    .then(function(r){ return r.text(); })
+    .then(function(text){
+      var rows = parseCSV(text);
+      if(!rows.length){ if(manual) showRosterSyncBar('Sheet appears empty.','warn'); return; }
+
+      // Map header names to column indexes
+      var headers = rows[0].map(function(h){ return (h||'').trim().toLowerCase(); });
+      function col(name){ return headers.indexOf(name); }
+      var iName=col('name'), iOrg=col('organization'), iTitle=col('title / rank'),
+          iPhone=col('phone'), iEmail=col('email'), iCountry=col('country'),
+          iDietary=col('dietary / accessibility'), iRef=col('how they heard'),
+          iCourse=col('course'), iSub=col('submitted');
+
+      var added = 0, updated = 0;
+      for(var r=1; r<rows.length; r++){
+        var cells = rows[r];
+        var name = (cells[iName]||'').trim();
+        var email = (cells[iEmail]||'').trim();
+        if(!name && !email) continue;          // skip blank rows
+        var phone = (cells[iPhone]||'').trim();
+        if(phone === '#ERROR!') phone = '';     // guard against sheet formula glitch
+        var course = (iCourse>-1 ? (cells[iCourse]||'').trim() : '') || 'Firefighter I & II Training Registration Form';
+        var key = rosterKey(course);
+        if(!state.rosters[key]) state.rosters[key] = {course: course, registrants:[]};
+
+        var existing = state.rosters[key].registrants.find(function(x){
+          return x.email && email && x.email.toLowerCase() === email.toLowerCase();
         });
-        if(!exists){
-          state.rosters[key].registrants.push({
-            id: Date.now() + Math.random(),
-            name: row.name||'',
-            org: row.org||'',
-            title: row.title||'',
-            phone: row.phone||'',
-            email: row.email||'',
-            country: row.country||'',
-            dietary: row.dietary||'',
-            referral: row.referral||'',
-            course: row.course||'',
-            addedAt: row.submittedAt || new Date().toISOString(),
-            source: 'jotform'
-          });
+        var rec = {
+          name: name,
+          org: (cells[iOrg]||'').trim(),
+          title: (cells[iTitle]||'').trim(),
+          phone: phone,
+          email: email,
+          country: (cells[iCountry]||'').trim(),
+          dietary: iDietary>-1 ? (cells[iDietary]||'').trim() : '',
+          referral: iRef>-1 ? (cells[iRef]||'').trim() : '',
+          course: course,
+          source: 'jotform'
+        };
+        if(existing){
+          // refresh fields but keep id/addedAt and any manual edits to dietary if sheet is blank
+          existing.org = rec.org || existing.org;
+          existing.title = rec.title || existing.title;
+          existing.phone = rec.phone || existing.phone;
+          existing.country = rec.country || existing.country;
+          existing.referral = rec.referral || existing.referral;
+          updated++;
+        } else {
+          rec.id = Date.now() + Math.random();
+          rec.addedAt = (iSub>-1 && cells[iSub]) ? cells[iSub] : new Date().toISOString();
+          state.rosters[key].registrants.push(rec);
           added++;
         }
-      });
-      // tell the sheet we've consumed these rows
+      }
+
+      saveAll();
+      renderRosters();
+      updateRosterBadge();
       if(added > 0){
-        saveAll();
-        renderRosters();
-        updateRosterBadge();
-        fetch(rosterScriptUrl + '?action=markSynced');
-        showRosterSyncBar('✓ '+added+' new registrant'+(added>1?'s':'')+' added to roster.','ok');
-      } else {
-        if(manual) showRosterSyncBar('All caught up — no new registrations.','ok');
+        showRosterSyncBar('✓ '+added+' new registrant'+(added>1?'s':'')+' added.','ok');
+      } else if(manual){
+        showRosterSyncBar('✓ Up to date — '+allRegistrants().length+' registrants in roster.','ok');
       }
     })
     .catch(function(err){
-      if(manual) showRosterSyncBar('Sync error: '+err.message+'. Check your Apps Script URL.','warn');
+      if(manual) showRosterSyncBar('Sync error: '+err.message+'. Check your internet connection.','warn');
     });
 }
 
@@ -1910,18 +1914,17 @@ function exportRosterCSV(){
 }
 
 function clearRosterSyncedFlag(){
-  if(!confirm('Reset sync markers? The next poll will re-check for unsynced rows in the Sheet.')) return;
-  fetch(rosterScriptUrl + '?action=resetSync').catch(function(){});
-  toast('Sync markers reset ✓');
+  toast('Sync is automatic from the published Sheet — nothing to reset.');
 }
 
 // renderRosters is called directly by showPage via renderAll — no wrapper needed
 
 // Init on load
 window.addEventListener('load', function(){
-  loadRosterConfig();
-  if(rosterScriptUrl) startRosterPoll();
   updateRosterBadge();
+  // Pull latest registrations from the published Sheet on load, then every 60s
+  pollRosterSheet(false);
+  setInterval(function(){ pollRosterSheet(false); }, 60000);
 });
 </script>
 
@@ -1974,25 +1977,47 @@ window.addEventListener('load', function(){
   });
   window.manualBackupAll = function(){
     var keys = Object.keys(localStorage).filter(function(k){ return k.indexOf("boes_") === 0 && k.indexOf("_last_backup") === -1; });
-    var count = 0;
-    keys.forEach(function(k){
-      var data = localStorage.getItem(k);
-      if(data && data.length > 10){
+    var bundle = {};
+    keys.forEach(function(k){ bundle[k] = localStorage.getItem(k); });
+    if(Object.keys(bundle).length === 0){ alert("No data found to back up."); return; }
+    try{
+      var today = todayStr();
+      var blob = new Blob([JSON.stringify(bundle, null, 2)],{type:"application/json"});
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = "BB-CRM-Backup-" + today + ".json";
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      keys.forEach(function(k){ localStorage.setItem(k+"_last_backup", today); });
+      alert("Backup complete — one file saved to your Downloads folder. Save it to Google Drive.");
+    }catch(e){ alert("Backup failed: " + e.message); }
+  };
+  window.restoreBackup = function(){
+    var input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = function(e){
+      var file = e.target.files[0];
+      if(!file) return;
+      var reader = new FileReader();
+      reader.onload = function(ev){
         try{
-          var today = todayStr();
-          var blob = new Blob([data],{type:"application/json"});
-          var url = URL.createObjectURL(blob);
-          var a = document.createElement("a");
-          a.href = url; a.download = k + "-backup-" + today + ".json";
-          document.body.appendChild(a); a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-          localStorage.setItem(k+"_last_backup", today);
-          count++;
-        }catch(e){}
-      }
-    });
-    alert("Backup complete — " + count + " file(s) saved to your Downloads folder.");
+          var data = JSON.parse(ev.target.result);
+          var n = 0;
+          Object.keys(data).forEach(function(k){
+            var v = data[k];
+            localStorage.setItem(k, typeof v === 'string' ? v : JSON.stringify(v));
+            n++;
+          });
+          alert("Restored " + n + " data set(s). The page will now reload.");
+          location.reload();
+        }catch(err){ alert("Restore failed: " + err.message + "\n\nMake sure you selected a BB-CRM-Backup file."); }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
   };
   window.checkBackupAge = function(){
     var keys = Object.keys(localStorage).filter(function(k){ return k.indexOf("boes_") === 0 && k.indexOf("_last_backup") === -1; });
@@ -2005,9 +2030,7 @@ window.addEventListener('load', function(){
       if(diff > BACKUP_REMINDER_DAYS) stale.push(k);
     });
     if(stale.length > 0){
-      if(confirm("⚠️ Data backup overdue (7+ days) for: " + stale.join(", ") + ".
-
-Back up now?")){
+      if(confirm("⚠️ Data backup overdue (7+ days) for: " + stale.join(", ") + ".\n\nBack up now?")){
         window.manualBackupAll();
       }
     }
