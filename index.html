@@ -187,6 +187,7 @@ nav{padding:16px 0;flex:1;overflow-y:auto;}
     <div class="nav-label" style="margin-top:6px">Production</div>
     <div class="nav-item prod-nav" onclick="showPage('prod-kanban')" id="nav-prod-kanban"><span class="nav-icon">⚡</span> Production Kanban</div>
     <div class="nav-item prod-nav" onclick="showPage('accounting')" id="nav-accounting"><span class="nav-icon">💰</span> Accounting</div>
+    <div class="nav-item prod-nav" onclick="showPage('invoices')" id="nav-invoices"><span class="nav-icon">🧾</span> Invoices <span class="badge" id="invoice-badge" style="display:none">0</span></div>
     <div class="nav-label" style="margin-top:6px">Tools</div>
     <div class="nav-item" onclick="showPage('import')" id="nav-import"><span class="nav-icon">↑</span> Import CSV</div>
     <div class="nav-item" onclick="showPage('customfields')" id="nav-customfields"><span class="nav-icon">✦</span> Custom Fields</div>
@@ -370,6 +371,54 @@ nav{padding:16px 0;flex:1;overflow-y:auto;}
     </div>
   </div>
 
+  <!-- INVOICES -->
+  <div class="page" id="page-invoices">
+    <div style="max-width:1050px">
+      <div class="panel">
+        <div class="panel-header" style="display:flex;align-items:center;justify-content:space-between">
+          <span>Invoice Queue <span class="sub" id="invoice-summary"></span></span>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select class="form-select" id="invoice-status-filter" onchange="renderInvoices()" style="width:200px;font-size:13px">
+              <option value="">All Statuses</option>
+              <option value="ready">Ready to Send</option>
+              <option value="scheduled">Scheduled</option>
+              <option value="sent">Sent</option>
+              <option value="paid">Paid</option>
+            </select>
+          </div>
+        </div>
+        <div class="panel-body" style="padding:0">
+          <div style="overflow-x:auto">
+            <table class="data-table" id="invoice-table">
+              <thead>
+                <tr>
+                  <th>Status</th>
+                  <th>Client / Project</th>
+                  <th>Type</th>
+                  <th>Amount</th>
+                  <th>Trigger Date</th>
+                  <th>Due Date</th>
+                  <th style="width:120px">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="invoice-tbody"></tbody>
+            </table>
+          </div>
+          <div id="invoice-empty" style="display:none;padding:40px;text-align:center;color:var(--text-muted);font-size:14px">
+            No invoices yet. Create a deal with a Category, Contract Value, and dates — invoices generate automatically.
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-body" style="padding:14px 20px">
+          <p style="font-size:13px;color:var(--text-muted)">
+            <strong>How this works:</strong> Invoices are created as soon as a deal is saved with dates and value, and start as <em>Scheduled</em>. When an invoice's trigger date arrives it flips to <em>Ready to Send</em>. PDF generation and one-click sending arrive in the next phase — for now you can mark invoices Sent or Paid manually to track them.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div><!-- /main -->
 <!-- MODALS -->
 <!-- EDIT REGISTRANT MODAL -->
@@ -434,8 +483,11 @@ nav{padding:16px 0;flex:1;overflow-y:auto;}
           <div id="org-suggestions" style="display:none;position:absolute;top:100%;left:0;right:0;background:#0f2540;border:1px solid var(--border);border-radius:6px;z-index:500;max-height:180px;overflow-y:auto;box-shadow:var(--shadow)"></div>
         </div>
         <div class="form-group"><label class="form-label">Project Name *</label><input type="text" class="form-input" id="d-project" placeholder="EOP Development"></div>
-        <div class="form-group"><label class="form-label">Contract Type</label>
-          <select class="form-select" id="d-type"><option>EOP Development</option><option>EAP Development</option><option>Emergency Action Plan</option><option>NIMS/ICS Training</option><option>Tabletop Exercise</option><option>Fire Instructor Training</option><option>HAZMAT Planning</option><option>Continuity of Operations</option><option>NFPA Training</option><option>Safety Consulting</option><option>Other</option></select>
+        <div class="form-group"><label class="form-label">Category</label>
+          <select class="form-select" id="d-category" onchange="onCategoryChange()"><option value="Training">Training</option><option value="Consulting">Consulting</option></select>
+        </div>
+        <div class="form-group"><label class="form-label">Subcategory</label>
+          <select class="form-select" id="d-subcategory"></select>
         </div>
         <div class="form-group"><label class="form-label">Contact Name</label><input type="text" class="form-input" id="d-contact" placeholder="Jane Smith"></div>
         <div class="form-group"><label class="form-label">Title</label><input type="text" class="form-input" id="d-title" placeholder="Emergency Manager"></div>
@@ -458,14 +510,35 @@ nav{padding:16px 0;flex:1;overflow-y:auto;}
           <select class="form-select" id="d-priority"><option value="high">High</option><option value="med" selected>Medium</option><option value="low">Low</option></select>
         </div>
       </div>
-      <div class="section-divider">Invoice Schedule</div>
+      <div class="section-divider">Billing Setup</div>
       <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr">
-        <div class="form-group"><label class="form-label">Invoice Trigger</label>
-          <select class="form-select" id="d-invoice-trigger"><option value="on-execution">On Contract Execution</option><option value="pre-start">10 Days Prior to Start</option><option value="post-complete">15 Days After Completion</option><option value="split">Split: 50% Execution + 50% Completion</option><option value="custom">Custom Schedule</option><option value="none">None / Manual</option></select>
+        <!-- Training -->
+        <div class="form-group bill-training"><label class="form-label">Prepayment Type</label>
+          <select class="form-select" id="d-prepay-mode"><option value="percent">% of Contract</option><option value="fixed">Fixed $</option></select>
         </div>
-        <div class="form-group"><label class="form-label">Invoice Status</label>
-          <select class="form-select" id="d-invoice-status"><option value="not-invoiced">Not Invoiced</option><option value="created">Invoice Created</option><option value="sent">Invoice Sent</option><option value="partial">Partial Payment</option><option value="paid">Paid in Full</option></select>
+        <div class="form-group bill-training"><label class="form-label">Prepayment Amount</label>
+          <input type="number" class="form-input" id="d-prepay-value" value="50" placeholder="50">
         </div>
+        <div class="form-group bill-training"><label class="form-label">Balance Due (days after completion)</label>
+          <input type="number" class="form-input" id="d-balance-net" value="15" placeholder="15">
+        </div>
+        <!-- Consulting -->
+        <div class="form-group bill-consulting"><label class="form-label">Execution Date</label>
+          <input type="date" class="form-input" id="d-exec-date">
+        </div>
+        <div class="form-group bill-consulting"><label class="form-label">Execution Payment Type</label>
+          <select class="form-select" id="d-exec-mode"><option value="fixed">Fixed $</option><option value="percent">% of Contract</option></select>
+        </div>
+        <div class="form-group bill-consulting"><label class="form-label">Execution Amount</label>
+          <input type="number" class="form-input" id="d-exec-value" placeholder="0">
+        </div>
+      </div>
+      <div class="bill-consulting" id="progress-payments-wrap" style="margin-top:8px">
+        <label class="form-label">Progress Payments (optional)</label>
+        <div id="progress-payments-list"></div>
+        <button type="button" class="btn btn-outline btn-sm" style="margin-top:6px" onclick="addProgressPaymentRow()">+ Add Progress Payment</button>
+      </div>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr;margin-top:10px">
         <div class="form-group"><label class="form-label">Delivery Method</label>
           <select class="form-select" id="d-delivery"><option>In Person</option><option>Virtual</option><option>Hybrid</option><option>On-Site</option></select>
         </div>
@@ -631,6 +704,7 @@ function showPage(id){
   const nav=document.getElementById('nav-'+id);if(nav)nav.classList.add('active');
   const titles={
     rosters:'Course <span>Rosters</span>',
+    invoices:'Invoice <span>Queue</span>',
     dashboard:'Dashboard <span>Overview</span>',
     pipeline:'Pipeline <span>Kanban</span>',
     'prod-kanban':'Production <span class="pa">Kanban</span>',
@@ -693,10 +767,18 @@ function openModal(type){
     document.getElementById('d-stage').value='Lead';
     document.getElementById('d-priority').value='med';
     document.getElementById('d-location-type').value='fort-wayne';
-    document.getElementById('d-invoice-trigger').value='none';
-    document.getElementById('d-invoice-status').value='not-invoiced';
+    document.getElementById('d-category').value='Training';
+    populateSubcategories('Training');
+    document.getElementById('d-prepay-mode').value='percent';
+    document.getElementById('d-prepay-value').value='50';
+    document.getElementById('d-balance-net').value='15';
+    document.getElementById('d-exec-date').value='';
+    document.getElementById('d-exec-mode').value='fixed';
+    document.getElementById('d-exec-value').value='';
+    renderProgressPaymentRows([]);
     document.getElementById('d-delivery').value='In Person';
     toggleLocationField();
+    toggleBillingFields();
     renderCustomFieldInputs();
   }
   document.getElementById('modal-'+type).classList.add('open');
@@ -733,6 +815,267 @@ function promoteDealToProduction(deal){
 // ══════════════════════════════════════════════════════════
 // DEALS — SAVE / EDIT / DELETE
 // ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════
+// CATEGORY / BILLING / INVOICE ENGINE  (Phase 1)
+// ══════════════════════════════════════════════════════════
+var SUBCATEGORIES = {
+  'Training': ['Fire Training','Safety Training','Hazmat Training','Corporate Training','NFPA Certification Training','Incident Command Training'],
+  'Consulting': ['Plan Writing','Plan Review & Revision','Compliance','Safety Planning','Exercises','Business Continuity']
+};
+
+function populateSubcategories(category){
+  var sel=document.getElementById('d-subcategory');
+  if(!sel)return;
+  var list=SUBCATEGORIES[category]||[];
+  sel.innerHTML=list.map(function(s){return '<option>'+s+'</option>';}).join('');
+}
+
+function onCategoryChange(){
+  populateSubcategories(document.getElementById('d-category').value);
+  toggleBillingFields();
+}
+
+function toggleBillingFields(){
+  var cat=document.getElementById('d-category').value;
+  document.querySelectorAll('.bill-training').forEach(function(el){ el.style.display = (cat==='Training')?'':'none'; });
+  document.querySelectorAll('.bill-consulting').forEach(function(el){ el.style.display = (cat==='Consulting')?'':'none'; });
+  var wrap=document.getElementById('progress-payments-wrap');
+  if(wrap) wrap.style.display=(cat==='Consulting')?'':'none';
+}
+
+// --- Progress payment row builder (consulting) ---
+function progressRowHtml(p){
+  p=p||{label:'',amount:'',date:''};
+  return '<div class="prog-row" style="display:flex;gap:8px;margin-bottom:6px">'+
+    '<input type="text" class="form-input prog-label" placeholder="Milestone / description" value="'+(p.label||'').replace(/"/g,'&quot;')+'" style="flex:2">'+
+    '<input type="number" class="form-input prog-amount" placeholder="Amount $" value="'+(p.amount!=null?p.amount:'')+'" style="flex:1">'+
+    '<input type="date" class="form-input prog-date" value="'+(p.date||'')+'" style="flex:1">'+
+    '<button type="button" class="btn btn-outline btn-sm" onclick="this.parentNode.remove()">✕</button>'+
+  '</div>';
+}
+function addProgressPaymentRow(){
+  var list=document.getElementById('progress-payments-list');
+  if(list) list.insertAdjacentHTML('beforeend', progressRowHtml());
+}
+function renderProgressPaymentRows(rows){
+  var list=document.getElementById('progress-payments-list');
+  if(!list)return;
+  list.innerHTML=(rows&&rows.length)?rows.map(progressRowHtml).join(''):'';
+}
+function readProgressPaymentRows(){
+  var rows=[];
+  document.querySelectorAll('#progress-payments-list .prog-row').forEach(function(r){
+    var label=r.querySelector('.prog-label').value.trim();
+    var amount=parseFloat(r.querySelector('.prog-amount').value)||0;
+    var date=r.querySelector('.prog-date').value;
+    if(label||amount||date) rows.push({label:label,amount:amount,date:date});
+  });
+  return rows;
+}
+
+// --- Date helpers (YYYY-MM-DD safe) ---
+function addDays(dateStr, days){
+  if(!dateStr) return '';
+  var d=new Date(dateStr+'T00:00:00');
+  d.setDate(d.getDate()+days);
+  return d.toISOString().slice(0,10);
+}
+
+// --- Invoice plan generator ---
+// Preserves any existing invoices already marked sent/paid.
+function generateInvoicePlan(deal, prevPlan){
+  var preserved=(prevPlan||[]).filter(function(inv){ return inv.status==='sent'||inv.status==='paid'; });
+  var plan=[];
+  var b=deal.billing||{};
+  var value=deal.value||0;
+
+  if(deal.category==='Training'){
+    // Prepayment
+    var prepayAmt = (b.prepayMode==='fixed') ? (b.prepayValue||0) : Math.round(value*((b.prepayValue||0)/100)*100)/100;
+    var balanceAmt = Math.round((value - prepayAmt)*100)/100;
+    if(deal.startDate){
+      plan.push({
+        id:'inv_'+deal.id+'_prepay',
+        dealId:deal.id, type:'prepayment', label:'Prepayment',
+        amount:prepayAmt,
+        triggerDate:addDays(deal.startDate,-30),
+        dueDate:addDays(deal.startDate,-15),
+        status:'scheduled', invoiceNumber:null, sentDate:null, paidDate:null
+      });
+    }
+    if(deal.endDate){
+      plan.push({
+        id:'inv_'+deal.id+'_balance',
+        dealId:deal.id, type:'balance', label:'Balance Due',
+        amount:balanceAmt,
+        triggerDate:addDays(deal.endDate,1),
+        dueDate:addDays(deal.endDate, 1+(b.balanceNet||15)),
+        status:'scheduled', invoiceNumber:null, sentDate:null, paidDate:null
+      });
+    }
+  } else if(deal.category==='Consulting'){
+    // Execution payment
+    var execAmt = (b.execMode==='percent') ? Math.round(value*((b.execValue||0)/100)*100)/100 : (b.execValue||0);
+    if(execAmt>0){
+      var execDate=b.execDate||deal.startDate||'';
+      plan.push({
+        id:'inv_'+deal.id+'_exec',
+        dealId:deal.id, type:'execution', label:'Due on Contract Execution',
+        amount:execAmt,
+        triggerDate:execDate,
+        dueDate:execDate,
+        status:'scheduled', invoiceNumber:null, sentDate:null, paidDate:null
+      });
+    }
+    // Progress payments
+    (b.progress||[]).forEach(function(p,i){
+      plan.push({
+        id:'inv_'+deal.id+'_prog'+i,
+        dealId:deal.id, type:'progress', label:p.label||('Progress Payment '+(i+1)),
+        amount:p.amount||0,
+        triggerDate:p.date||'',
+        dueDate:p.date||'',
+        status:'scheduled', invoiceNumber:null, sentDate:null, paidDate:null
+      });
+    });
+  }
+
+  // Merge: keep preserved (sent/paid) versions over freshly generated ones of same id
+  var preservedIds=preserved.map(function(p){return p.id;});
+  var merged=preserved.concat(plan.filter(function(p){return preservedIds.indexOf(p.id)===-1;}));
+  return merged;
+}
+
+// --- Evaluate triggers: flip scheduled -> ready when trigger date reached ---
+function evaluateInvoiceTriggers(){
+  var today=new Date().toISOString().slice(0,10);
+  (state.deals||[]).forEach(function(d){
+    (d.invoicePlan||[]).forEach(function(inv){
+      if(inv.status==='scheduled' && inv.triggerDate && inv.triggerDate<=today){
+        inv.status='ready';
+      }
+    });
+  });
+}
+
+// --- Render the invoice queue ---
+function allInvoices(){
+  var out=[];
+  (state.deals||[]).forEach(function(d){
+    (d.invoicePlan||[]).forEach(function(inv){
+      out.push(Object.assign({}, inv, {_org:d.org, _project:d.project, _category:d.category}));
+    });
+  });
+  return out;
+}
+
+function fmtMoney(n){ return '$'+(Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtDate(s){ if(!s)return '—'; var d=new Date(s+'T00:00:00'); return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
+
+function updateInvoiceBadge(){
+  var ready=allInvoices().filter(function(i){return i.status==='ready';}).length;
+  var badge=document.getElementById('invoice-badge');
+  if(badge){ badge.style.display=ready?'':'none'; badge.textContent=ready; }
+}
+
+function renderInvoices(){
+  evaluateInvoiceTriggers();
+  updateInvoiceBadge();
+  var page=document.getElementById('page-invoices');
+  if(!page||!page.classList.contains('active')) return;
+
+  var filter=document.getElementById('invoice-status-filter');
+  var fval=filter?filter.value:'';
+  var invoices=allInvoices();
+  if(fval) invoices=invoices.filter(function(i){return i.status===fval;});
+
+  // sort: ready first, then by trigger date
+  var order={ready:0,scheduled:1,sent:2,paid:3};
+  invoices.sort(function(a,b){
+    var oa=order[a.status]!=null?order[a.status]:9, ob=order[b.status]!=null?order[b.status]:9;
+    if(oa!==ob) return oa-ob;
+    return (a.triggerDate||'').localeCompare(b.triggerDate||'');
+  });
+
+  var summary=document.getElementById('invoice-summary');
+  if(summary){
+    var all=allInvoices();
+    var ready=all.filter(function(i){return i.status==='ready';}).length;
+    var sched=all.filter(function(i){return i.status==='scheduled';}).length;
+    summary.textContent=ready+' ready · '+sched+' scheduled · '+all.length+' total';
+  }
+
+  var tbody=document.getElementById('invoice-tbody');
+  var empty=document.getElementById('invoice-empty');
+  if(!invoices.length){ tbody.innerHTML=''; empty.style.display=''; return; }
+  empty.style.display='none';
+
+  var badge={
+    ready:'<span style="font-size:11px;background:var(--green-glow);color:var(--green);padding:2px 8px;border-radius:10px;border:1px solid var(--green)">Ready to Send</span>',
+    scheduled:'<span style="font-size:11px;background:rgba(255,255,255,0.05);color:var(--text-muted);padding:2px 8px;border-radius:10px;border:1px solid var(--border)">Scheduled</span>',
+    sent:'<span style="font-size:11px;background:rgba(59,130,246,0.12);color:#7cb3ff;padding:2px 8px;border-radius:10px;border:1px solid #3b82f6">Sent</span>',
+    paid:'<span style="font-size:11px;background:var(--green-glow);color:var(--green);padding:2px 8px;border-radius:10px;border:1px solid var(--green)">Paid ✓</span>'
+  };
+
+  tbody.innerHTML=invoices.map(function(i){
+    var actions='';
+    if(i.status==='ready'){ actions='<button class="btn btn-primary btn-sm" style="padding:2px 8px;font-size:11px" onclick="markInvoice(\''+i.id+'\',\'sent\')">Mark Sent</button>'; }
+    else if(i.status==='sent'){ actions='<button class="btn btn-primary btn-sm" style="padding:2px 8px;font-size:11px" onclick="markInvoice(\''+i.id+'\',\'paid\')">Mark Paid</button>'; }
+    else if(i.status==='scheduled'){ actions='<span style="color:var(--text-muted);font-size:12px">waiting</span>'; }
+    else { actions='<span style="color:var(--green);font-size:12px">complete</span>'; }
+    return '<tr>'+
+      '<td>'+(badge[i.status]||i.status)+'</td>'+
+      '<td><strong style="color:var(--white)">'+escHtml(i._org||'—')+'</strong><br><span style="font-size:12px;color:var(--text-muted)">'+escHtml(i._project||'')+'</span></td>'+
+      '<td style="font-size:13px">'+escHtml(i.label||i.type)+'</td>'+
+      '<td style="font-size:13px">'+fmtMoney(i.amount)+'</td>'+
+      '<td style="font-size:12px;color:var(--text-muted)">'+fmtDate(i.triggerDate)+'</td>'+
+      '<td style="font-size:12px;color:var(--text-muted)">'+fmtDate(i.dueDate)+'</td>'+
+      '<td>'+actions+'</td>'+
+      '</tr>';
+  }).join('');
+}
+
+function markInvoice(invId, status){
+  (state.deals||[]).forEach(function(d){
+    (d.invoicePlan||[]).forEach(function(inv){
+      if(inv.id===invId){
+        inv.status=status;
+        if(status==='sent') inv.sentDate=new Date().toISOString().slice(0,10);
+        if(status==='paid') inv.paidDate=new Date().toISOString().slice(0,10);
+      }
+    });
+  });
+  saveAll();
+  renderInvoices();
+}
+
+
+function migrateDeals(){
+  var map={
+    'NIMS/ICS Training':['Training','Incident Command Training'],
+    'Fire Instructor Training':['Training','Fire Training'],
+    'NFPA Training':['Training','NFPA Certification Training'],
+    'EOP Development':['Consulting','Plan Writing'],
+    'EAP Development':['Consulting','Plan Writing'],
+    'Emergency Action Plan':['Consulting','Plan Writing'],
+    'Tabletop Exercise':['Consulting','Exercises'],
+    'HAZMAT Planning':['Consulting','Plan Writing'],
+    'Continuity of Operations':['Consulting','Business Continuity'],
+    'Safety Consulting':['Consulting','Safety Planning']
+  };
+  var changed=false;
+  (state.deals||[]).forEach(function(d){
+    if(!d.category){
+      var m=map[d.contractType];
+      if(m){ d.category=m[0]; d.subcategory=m[1]; }
+      else { d.category='Training'; d.subcategory=''; d._needsReclassify=true; }
+      changed=true;
+    }
+    if(!d.invoicePlan) d.invoicePlan=[];
+  });
+  if(changed) saveAll();
+}
+
 function saveDeal(){
   const org=document.getElementById('d-org').value.trim();
   const project=document.getElementById('d-project').value.trim();
@@ -751,15 +1094,27 @@ function saveDeal(){
     priority:document.getElementById('d-priority').value,
     startDate:document.getElementById('d-start').value,
     endDate:document.getElementById('d-end').value,
-    contractType:document.getElementById('d-type').value,
+    category:document.getElementById('d-category').value,
+    subcategory:document.getElementById('d-subcategory').value,
+    contractType:document.getElementById('d-subcategory').value,
     notes:document.getElementById('d-notes').value.trim(),
     locationType:document.getElementById('d-location-type').value,
     locationText:document.getElementById('d-location-text').value.trim(),
     deliveryMethod:document.getElementById('d-delivery').value,
-    invoiceTrigger:document.getElementById('d-invoice-trigger').value,
-    invoiceStatus:document.getElementById('d-invoice-status').value,
+    billing:{
+      prepayMode:document.getElementById('d-prepay-mode').value,
+      prepayValue:parseFloat(document.getElementById('d-prepay-value').value)||0,
+      balanceNet:parseInt(document.getElementById('d-balance-net').value)||15,
+      execDate:document.getElementById('d-exec-date').value,
+      execMode:document.getElementById('d-exec-mode').value,
+      execValue:parseFloat(document.getElementById('d-exec-value').value)||0,
+      progress:readProgressPaymentRows()
+    },
     customFields:customVals
   };
+  // Preserve any already-sent/paid invoices, regenerate the rest
+  var prevDeal = state.editingDealId ? state.deals.find(d=>d.id===state.editingDealId) : null;
+  deal.invoicePlan = generateInvoicePlan(deal, prevDeal ? prevDeal.invoicePlan : null);
   if(state.editingDealId){
     const idx=state.deals.findIndex(d=>d.id===state.editingDealId);
     if(idx>-1)state.deals[idx]=Object.assign({},state.deals[idx],deal);
@@ -792,13 +1147,22 @@ function editDeal(id){
   document.getElementById('d-priority').value=deal.priority||'med';
   document.getElementById('d-start').value=deal.startDate||'';
   document.getElementById('d-end').value=deal.endDate||'';
-  document.getElementById('d-type').value=deal.contractType||'Other';
+  document.getElementById('d-category').value=deal.category||'Training';
+  populateSubcategories(deal.category||'Training');
+  document.getElementById('d-subcategory').value=deal.subcategory||deal.contractType||'';
   document.getElementById('d-notes').value=deal.notes||'';
   document.getElementById('d-location-type').value=deal.locationType||'fort-wayne';
   document.getElementById('d-location-text').value=deal.locationText||'';
   document.getElementById('d-delivery').value=deal.deliveryMethod||'In Person';
-  document.getElementById('d-invoice-trigger').value=deal.invoiceTrigger||'none';
-  document.getElementById('d-invoice-status').value=deal.invoiceStatus||'not-invoiced';
+  var b=deal.billing||{};
+  document.getElementById('d-prepay-mode').value=b.prepayMode||'percent';
+  document.getElementById('d-prepay-value').value=(b.prepayValue!=null?b.prepayValue:50);
+  document.getElementById('d-balance-net').value=(b.balanceNet!=null?b.balanceNet:15);
+  document.getElementById('d-exec-date').value=b.execDate||'';
+  document.getElementById('d-exec-mode').value=b.execMode||'fixed';
+  document.getElementById('d-exec-value').value=(b.execValue!=null?b.execValue:'');
+  renderProgressPaymentRows(b.progress||[]);
+  toggleBillingFields();
   toggleLocationField();
   renderCustomFieldInputs();
   state.customFields.forEach(f=>{const el=document.getElementById('cf-val-'+f.id);if(el&&deal.customFields)el.value=deal.customFields[f.id]||'';});
@@ -1523,6 +1887,7 @@ function renderAll(){
   renderCustomFieldsList();
   renderMasterEquip();
   if(typeof renderRosters==='function') renderRosters();
+  if(typeof renderInvoices==='function') renderInvoices();
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1575,6 +1940,8 @@ document.querySelectorAll('.modal-overlay').forEach(o=>{
 // ══════════════════════════════════════════════════════════
 loadAll();
 seedData();
+migrateDeals();
+evaluateInvoiceTriggers();
 renderAll();
 </script>
 
