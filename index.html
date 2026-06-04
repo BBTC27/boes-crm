@@ -203,6 +203,44 @@
   .gantt-legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:14px;padding:10px 12px;background:var(--surface2);border-radius:var(--radius-sm);}
   .gantt-leg{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-muted);font-weight:500;}
   .gantt-leg-dot{width:11px;height:11px;border-radius:3px;}
+  /* ── STUDENTS ── */
+  .student-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:16px;}
+  .student-card{background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px 18px;border-left:4px solid var(--navy);cursor:pointer;transition:box-shadow .15s,transform .15s;position:relative;}
+  .student-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-2px);}
+  .student-card-header{display:flex;align-items:center;gap:12px;margin-bottom:10px;}
+  .student-avatar{width:40px;height:40px;border-radius:50%;background:var(--navy);color:white;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;flex-shrink:0;}
+  .student-name{font-size:14px;font-weight:700;color:var(--text);}
+  .student-org{font-size:11px;color:var(--text-muted);margin-top:1px;}
+  .student-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+  .country-tag{display:inline-flex;align-items:center;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600;background:rgba(26,62,109,0.08);color:var(--navy);}
+  .cert-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700;}
+  .cert-issued{background:#e8f5e9;color:#2e7d32;}
+  .cert-pending{background:#fff3e0;color:#e65100;}
+  .cert-fail{background:#fde8e8;color:var(--danger);}
+  .cert-na{background:var(--gray-light);color:var(--gray-dark);}
+  .student-enrollments{border-top:1px solid var(--border);padding-top:10px;margin-top:2px;}
+  .enrollment-row{display:flex;align-items:center;justify-content:space-between;padding:3px 0;font-size:12px;gap:6px;}
+  .enrollment-course{color:var(--text);font-weight:500;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .exam-score{font-size:11px;font-weight:700;padding:2px 6px;border-radius:4px;}
+  .score-pass{color:#2e7d32;background:#e8f5e9;}
+  .score-fail{color:var(--danger);background:#fde8e8;}
+  .student-card-actions{position:absolute;top:10px;right:10px;display:flex;gap:3px;opacity:0;transition:opacity .15s;}
+  .student-card:hover .student-card-actions{opacity:1;}
+  .student-detail-header{background:linear-gradient(135deg,var(--navy-dark) 0%,var(--navy) 100%);color:white;padding:24px;border-radius:var(--radius);display:flex;align-items:flex-start;gap:18px;margin-bottom:20px;flex-wrap:wrap;}
+  .student-detail-avatar{width:60px;height:60px;border-radius:50%;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:700;flex-shrink:0;}
+  .student-detail-info h2{font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:700;}
+  .student-stats{display:flex;gap:0;margin-left:auto;border-left:1px solid rgba(255,255,255,0.2);padding-left:20px;}
+  .student-stat{text-align:center;padding:0 14px;border-right:1px solid rgba(255,255,255,0.2);}
+  .student-stat:last-child{border-right:none;}
+  .student-stat-val{font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:700;color:var(--green);}
+  .student-stat-label{font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:1px;}
+  .transcript-table{width:100%;border-collapse:collapse;font-size:13px;}
+  .transcript-table th{background:var(--navy);color:white;padding:9px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;}
+  .transcript-table td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:middle;}
+  .transcript-table tr:last-child td{border-bottom:none;}
+  .transcript-table tr:hover td{background:var(--surface2);}
+  .urgent-flag{display:inline-flex;align-items:center;gap:4px;background:#fde8e8;color:var(--danger);padding:3px 9px;border-radius:10px;font-size:11px;font-weight:700;animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.65}}
 </style>
 </head>
 <body>
@@ -217,6 +255,7 @@
   <div class="nav-item active" onclick="navigate('dashboard')"><span class="nav-icon">📊</span> Dashboard</div>
   <div class="nav-item" onclick="navigate('pipeline')"><span class="nav-icon">🔀</span> Pipeline <span class="nav-badge green" id="badge-pipeline">0</span></div>
   <div class="nav-item" onclick="navigate('contacts')"><span class="nav-icon">👥</span> Contacts</div>
+  <div class="nav-item" onclick="navigate('students')"><span class="nav-icon">🎓</span> Students <span class="nav-badge green" id="badge-students">0</span></div>
   <div class="nav-item" onclick="navigate('tasks')"><span class="nav-icon">✅</span> Tasks <span class="nav-badge" id="badge-tasks">0</span></div>
   <div class="nav-section-label">Intelligence</div>
   <div class="nav-item" onclick="navigate('activity')"><span class="nav-icon">📋</span> Activity Log</div>
@@ -410,10 +449,120 @@
       </div>
     </div>
 
+    <!-- STUDENTS -->
+    <div id="view-students" class="view">
+      <div id="students-list-view">
+        <div class="section-title">🎓 Student Roster</div>
+        <div class="toolbar">
+          <div class="search-wrap" style="flex:1;min-width:200px;">
+            <span class="search-icon">🔍</span>
+            <input class="search-input" id="student-search" placeholder="Search by name, org, email, PIN..." oninput="renderStudents()">
+          </div>
+          <select class="inline-select" id="student-filter-country" onchange="renderStudents()"><option value="">All Countries</option></select>
+          <select class="inline-select" id="student-filter-course" onchange="renderStudents()"><option value="">All Courses</option></select>
+          <select class="inline-select" id="student-filter-cert" onchange="renderStudents()">
+            <option value="">All Cert Status</option>
+            <option value="issued">Cert Issued</option>
+            <option value="pending">Cert Pending</option>
+            <option value="urgent">Urgent</option>
+            <option value="fail">Has Failed Exam</option>
+          </select>
+          <button class="btn btn-outline btn-sm" onclick="exportStudentsCSV()">📥 CSV</button>
+          <button class="btn btn-primary btn-sm" onclick="openStudentModal()">+ Add Student</button>
+        </div>
+        <div class="card" style="margin-bottom:14px;">
+          <div class="card-body" style="padding:12px 18px;"><div id="students-summary" style="display:flex;gap:24px;flex-wrap:wrap;font-size:13px;"></div></div>
+        </div>
+        <div id="students-container"></div>
+      </div>
+      <div id="student-detail-view" style="display:none;"></div>
+    </div>
+
   </div>
 </div>
 
 <!-- MODALS -->
+<div class="modal-overlay" id="modal-student">
+  <div class="modal" style="max-width:620px;">
+    <div class="modal-header"><h3 id="modal-student-title">Add Student</h3><button class="modal-close" onclick="closeModal('modal-student')">✕</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="student-edit-id">
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">First Name</label><input class="form-control" id="s-fname" placeholder="First"></div>
+        <div class="form-group"><label class="form-label">Last Name</label><input class="form-control" id="s-lname" placeholder="Last"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Email</label><input class="form-control" id="s-email" type="email" placeholder="email@domain.com"></div>
+        <div class="form-group"><label class="form-label">Phone</label><input class="form-control" id="s-phone" placeholder="+1 xxx xxx xxxx"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Country</label><input class="form-control" id="s-country" placeholder="Qatar, India, UAE..."></div>
+        <div class="form-group"><label class="form-label">Title / Role</label><input class="form-control" id="s-title" placeholder="Fire Captain, HSE Officer..."></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Employer / Organization</label><input class="form-control" id="s-orgname" placeholder="QatarEnergy, Shell..."></div>
+        <div class="form-group"><label class="form-label">Pro Board PIN</label><input class="form-control" id="s-pin" placeholder="e.g. Nyathi1982 or 6779"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Tags (comma separated)</label><input class="form-control" id="s-tags" placeholder="qatar, fire-officer, urgent..."></div>
+      <div class="form-group"><label class="form-label">Notes</label><textarea class="form-control" id="s-notes" placeholder="Anything important about this student..."></textarea></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-student')">Cancel</button><button class="btn btn-primary" onclick="saveStudent()">Save Student</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-enrollment">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header"><h3>Add Course Enrollment</h3><button class="modal-close" onclick="closeModal('modal-enrollment')">✕</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="enroll-student-id">
+      <input type="hidden" id="enroll-idx">
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Course</label>
+          <select class="form-control" id="e-course">
+            <option value="FO1">NFPA 1021 Fire Officer I</option>
+            <option value="FO2">NFPA 1021 Fire Officer II</option>
+            <option value="FO3">NFPA 1021 Fire Officer III</option>
+            <option value="FO4">NFPA 1021 Fire Officer IV</option>
+            <option value="FI1">NFPA 1041 Fire Instructor I</option>
+            <option value="FI2">NFPA 1041 Fire Instructor II</option>
+            <option value="FI3">NFPA 1041 Fire Instructor III</option>
+            <option value="FF1_2">ProBoard Firefighter I &amp; II (Combined)</option>
+            <option value="ARFF">NFPA 1003 Airport Firefighter (ARFF)</option>
+            <option value="CFI">Certified Fire Inspector (CFI)</option>
+            <option value="DO">NFPA 1002 Driver Operator</option>
+            <option value="HAZMAT">Hazmat Awareness &amp; Operations</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">Date (YYYY-MM)</label><input class="form-control" id="e-date" placeholder="2026-05"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Location</label><input class="form-control" id="e-location" placeholder="Virtual / Doha, Qatar"></div>
+        <div class="form-group"><label class="form-label">Amount Paid ($)</label><input class="form-control" id="e-amount" type="number" placeholder="599"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Payment Status</label>
+          <select class="form-control" id="e-payment"><option value="Paid">Paid</option><option value="Pending">Pending</option><option value="Waived">Waived</option></select>
+        </div>
+        <div class="form-group"><label class="form-label">Exam Result</label>
+          <select class="form-control" id="e-exam"><option value="">Not yet taken</option><option value="Pass">Pass</option><option value="Fail">Fail</option><option value="Pending">Pending</option><option value="Exempt">Exempt</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Exam Score (%)</label><input class="form-control" id="e-score" type="number" min="0" max="100" placeholder="85"></div>
+        <div class="form-group"><label class="form-label">Certificate Issued?</label>
+          <select class="form-control" id="e-cert"><option value="">Unknown</option><option value="true">Yes — Issued</option><option value="false">No — Pending</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Pro Board PIN</label><input class="form-control" id="e-pin" placeholder="Student PIN for this exam"></div>
+        <div class="form-group"><label class="form-label">Cert Issue Date</label><input class="form-control" id="e-certdate" type="date"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Notes</label><textarea class="form-control" id="e-notes" placeholder="Any notes about this enrollment..."></textarea></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-enrollment')">Cancel</button><button class="btn btn-primary" onclick="saveEnrollment()">Save Enrollment</button></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-contact">
   <div class="modal">
     <div class="modal-header"><h3 id="modal-contact-title">Add Contact</h3><button class="modal-close" onclick="closeModal('modal-contact')">✕</button></div>
@@ -569,11 +718,12 @@ function navigate(view){
   const el=document.getElementById('view-'+view);
   if(el){el.classList.add('active');currentView=view;}
   document.querySelectorAll('.nav-item').forEach(n=>{if(n.getAttribute('onclick')&&n.getAttribute('onclick').includes("'"+view+"'"))n.classList.add('active');});
-  const titles={dashboard:'Dashboard',pipeline:'Pipeline',contacts:'Contacts',tasks:'Tasks',activity:'Activity Log',ai:'AI Assistant',gmail:'Gmail',production:'Production'};
+  const titles={dashboard:'Dashboard',pipeline:'Pipeline',contacts:'Contacts',students:'Students',tasks:'Tasks',activity:'Activity Log',ai:'AI Assistant',gmail:'Gmail',production:'Production'};
   document.getElementById('topbar-title').textContent=titles[view]||view;
   if(view==='dashboard')renderDashboard();
   if(view==='pipeline')renderPipeline();
   if(view==='contacts'){showContactsList();renderContacts();}
+  if(view==='students'){showStudentsList();renderStudents();}
   if(view==='tasks')renderTasks();
   if(view==='activity')renderActivity();
   if(view==='production')renderProduction();
@@ -870,11 +1020,336 @@ function exportData(){const blob=new Blob([JSON.stringify(DB,null,2)],{type:'app
 function importData(){document.getElementById('import-file-input').click();}
 function handleImport(e){const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=ev=>{try{const imported=JSON.parse(ev.target.result);if(confirm('Import data? This will replace current data.\nContacts: '+(imported.contacts||[]).length+' | Projects: '+(imported.deals||[]).length+' | Tasks: '+(imported.tasks||[]).length)){DB={...defaultData(),...imported};save();renderDashboard();updateBadges();toast('✅ Data imported successfully!');}}catch(err){toast('Import error: '+err.message,true);}};reader.readAsText(file);e.target.value='';}
 
+// ─── STUDENTS ───
+const COURSE_NAMES={FO1:'Fire Officer I',FO2:'Fire Officer II',FO3:'Fire Officer III',FO4:'Fire Officer IV',FI1:'Fire Instructor I',FI2:'Fire Instructor II',FI3:'Fire Instructor III',FF1_2:'Firefighter I & II',ARFF:'Airport Firefighter (ARFF)',CFI:'Certified Fire Inspector',DO:'Driver Operator',HAZMAT:'Hazmat Awareness'};
+
+function getStudents(){return DB.students||[];}
+function saveStudents(){save();}
+
+function openStudentModal(id){
+  const fields=['s-fname','s-lname','s-email','s-phone','s-country','s-title','s-orgname','s-pin','s-tags','s-notes'];
+  fields.forEach(f=>{const el=document.getElementById(f);if(el)el.value='';});
+  document.getElementById('student-edit-id').value='';
+  document.getElementById('modal-student-title').textContent='Add Student';
+  if(id){
+    const s=getStudents().find(x=>x.id===id);if(!s)return;
+    document.getElementById('student-edit-id').value=s.id;
+    document.getElementById('s-fname').value=s.fname||'';
+    document.getElementById('s-lname').value=s.lname||'';
+    document.getElementById('s-email').value=s.email||'';
+    document.getElementById('s-phone').value=s.phone||'';
+    document.getElementById('s-country').value=s.country||'';
+    document.getElementById('s-title').value=s.title||'';
+    document.getElementById('s-orgname').value=s.orgName||'';
+    document.getElementById('s-pin').value=s.proboardPin||'';
+    document.getElementById('s-tags').value=(s.tags||[]).join(', ');
+    document.getElementById('s-notes').value=s.notes||'';
+    document.getElementById('modal-student-title').textContent='Edit Student';
+  }
+  openModal('modal-student',{edit:!!id});
+}
+
+function saveStudent(){
+  if(!DB.students)DB.students=[];
+  const id=document.getElementById('student-edit-id').value;
+  const s={
+    id:id||uid(),
+    fname:document.getElementById('s-fname').value.trim(),
+    lname:document.getElementById('s-lname').value.trim(),
+    email:document.getElementById('s-email').value.trim(),
+    phone:document.getElementById('s-phone').value.trim(),
+    country:document.getElementById('s-country').value.trim(),
+    title:document.getElementById('s-title').value.trim(),
+    orgName:document.getElementById('s-orgname').value.trim(),
+    orgId:'',
+    proboardPin:document.getElementById('s-pin').value.trim(),
+    tags:document.getElementById('s-tags').value.split(',').map(t=>t.trim()).filter(Boolean),
+    notes:document.getElementById('s-notes').value.trim(),
+    enrollments:id?(getStudents().find(x=>x.id===id)||{}).enrollments||[]:[],
+    created:id?(getStudents().find(x=>x.id===id)||{}).created||Date.now():Date.now()
+  };
+  if(!s.fname&&!s.lname){toast('Please enter a student name.',true);return;}
+  if(id){const idx=DB.students.findIndex(x=>x.id===id);if(idx>=0)DB.students[idx]=s;}
+  else DB.students.unshift(s);
+  saveStudents();closeModal('modal-student');renderStudents();updateStudentBadge();toast('✅ Student saved.');
+}
+
+function deleteStudent(id){
+  if(!confirm('Delete this student record?'))return;
+  DB.students=(DB.students||[]).filter(s=>s.id!==id);
+  saveStudents();renderStudents();updateStudentBadge();toast('Student deleted.');
+}
+
+function openEnrollmentModal(studentId,enrollIdx){
+  document.getElementById('enroll-student-id').value=studentId;
+  document.getElementById('enroll-idx').value=enrollIdx!==undefined?enrollIdx:'';
+  ['e-date','e-location','e-score','e-pin','e-certdate','e-notes'].forEach(f=>{const el=document.getElementById(f);if(el)el.value='';});
+  document.getElementById('e-course').value='FO1';
+  document.getElementById('e-payment').value='Paid';
+  document.getElementById('e-exam').value='';
+  document.getElementById('e-cert').value='';
+  document.getElementById('e-amount').value='';
+  if(enrollIdx!==undefined){
+    const s=getStudents().find(x=>x.id===studentId);
+    const e=s&&s.enrollments&&s.enrollments[enrollIdx];
+    if(e){
+      document.getElementById('e-course').value=e.courseKey||'FO1';
+      document.getElementById('e-date').value=e.date||'';
+      document.getElementById('e-location').value=e.location||'';
+      document.getElementById('e-amount').value=e.amountPaid||'';
+      document.getElementById('e-payment').value=e.paymentStatus||'Paid';
+      document.getElementById('e-exam').value=e.examResult||'';
+      document.getElementById('e-score').value=e.examScore||'';
+      document.getElementById('e-cert').value=e.certIssued===true?'true':e.certIssued===false?'false':'';
+      document.getElementById('e-certdate').value=e.certDate||'';
+      document.getElementById('e-pin').value=e.proboardPin||'';
+      document.getElementById('e-notes').value=e.notes||'';
+    }
+  }
+  openModal('modal-enrollment',{edit:true});
+}
+
+function saveEnrollment(){
+  const studentId=document.getElementById('enroll-student-id').value;
+  const enrollIdxRaw=document.getElementById('enroll-idx').value;
+  const enrollIdx=enrollIdxRaw!==''?parseInt(enrollIdxRaw):undefined;
+  const s=getStudents().find(x=>x.id===studentId);if(!s)return;
+  if(!s.enrollments)s.enrollments=[];
+  const courseKey=document.getElementById('e-course').value;
+  const certVal=document.getElementById('e-cert').value;
+  const e={
+    courseKey,
+    courseName:COURSE_NAMES[courseKey]||courseKey,
+    date:document.getElementById('e-date').value,
+    location:document.getElementById('e-location').value.trim(),
+    paymentStatus:document.getElementById('e-payment').value,
+    amountPaid:parseFloat(document.getElementById('e-amount').value)||0,
+    examResult:document.getElementById('e-exam').value,
+    examScore:document.getElementById('e-score').value?parseInt(document.getElementById('e-score').value):null,
+    certIssued:certVal===''?null:certVal==='true',
+    certDate:document.getElementById('e-certdate').value,
+    proboardPin:document.getElementById('e-pin').value.trim(),
+    notes:document.getElementById('e-notes').value.trim()
+  };
+  if(enrollIdx!==undefined)s.enrollments[enrollIdx]=e;
+  else s.enrollments.push(e);
+  saveStudents();closeModal('modal-enrollment');viewStudent(studentId);toast('✅ Enrollment saved.');
+}
+
+function deleteEnrollment(studentId,idx){
+  if(!confirm('Remove this enrollment?'))return;
+  const s=getStudents().find(x=>x.id===studentId);if(!s)return;
+  s.enrollments.splice(idx,1);saveStudents();viewStudent(studentId);toast('Enrollment removed.');
+}
+
+function certBadge(e){
+  if(e.certIssued===true)return'<span class="cert-badge cert-issued">✅ Cert Issued</span>';
+  if(e.examResult==='Fail')return'<span class="cert-badge cert-fail">❌ Failed</span>';
+  if(e.certIssued===false)return'<span class="cert-badge cert-pending">⏳ Pending</span>';
+  return'<span class="cert-badge cert-na">—</span>';
+}
+
+function scoreBadge(e){
+  if(!e.examScore&&!e.examResult)return'<span style="color:var(--text-muted);font-size:11px;">—</span>';
+  if(e.examScore){
+    const pass=e.examScore>=70;
+    return'<span class="exam-score '+(pass?'score-pass':'score-fail')+'">'+e.examScore+'%</span>';
+  }
+  if(e.examResult==='Pass')return'<span class="exam-score score-pass">Pass</span>';
+  if(e.examResult==='Fail')return'<span class="exam-score score-fail">Fail</span>';
+  return'<span style="color:var(--text-muted);font-size:11px;">'+e.examResult+'</span>';
+}
+
+function renderStudents(){
+  const students=getStudents();
+  const q=(document.getElementById('student-search')||{value:''}).value.toLowerCase();
+  const cf=(document.getElementById('student-filter-country')||{value:''}).value;
+  const cof=(document.getElementById('student-filter-course')||{value:''}).value;
+  const certf=(document.getElementById('student-filter-cert')||{value:''}).value;
+
+  // Populate filter dropdowns
+  const countries=[...new Set(students.map(s=>s.country).filter(Boolean))].sort();
+  const cSel=document.getElementById('student-filter-country');
+  if(cSel){const cv=cSel.value;cSel.innerHTML='<option value="">All Countries</option>'+countries.map(c=>'<option value="'+c+'"'+(c===cv?' selected':'')+'>'+c+'</option>').join('');}
+  const allCourses=[...new Set(students.flatMap(s=>(s.enrollments||[]).map(e=>e.courseKey)).filter(Boolean))].sort();
+  const coSel=document.getElementById('student-filter-course');
+  if(coSel){const cov=coSel.value;coSel.innerHTML='<option value="">All Courses</option>'+allCourses.map(c=>'<option value="'+c+'"'+(c===cov?' selected':'')+'>'+COURSE_NAMES[c]+'</option>').join('');}
+
+  let list=students.filter(s=>{
+    const match=[s.fname,s.lname,s.email,s.orgName,s.country,s.proboardPin,...(s.tags||[])].join(' ').toLowerCase().includes(q);
+    const countryOk=!cf||s.country===cf;
+    const courseOk=!cof||(s.enrollments||[]).some(e=>e.courseKey===cof);
+    const certOk=!certf||(
+      certf==='issued'&&(s.enrollments||[]).some(e=>e.certIssued===true)||
+      certf==='pending'&&(s.enrollments||[]).some(e=>e.certIssued===false)||
+      certf==='urgent'&&(s.tags||[]).includes('urgent')||
+      certf==='fail'&&(s.enrollments||[]).some(e=>e.examResult==='Fail'||e.examScore<70)
+    );
+    return match&&countryOk&&courseOk&&certOk;
+  });
+
+  // Summary bar
+  const totalEnrollments=list.reduce((a,s)=>a+(s.enrollments||[]).length,0);
+  const certsIssued=list.reduce((a,s)=>a+(s.enrollments||[]).filter(e=>e.certIssued===true).length,0);
+  const certsPending=list.reduce((a,s)=>a+(s.enrollments||[]).filter(e=>e.certIssued===false).length,0);
+  const urgent=list.filter(s=>(s.tags||[]).includes('urgent')).length;
+  const sumEl=document.getElementById('students-summary');
+  if(sumEl)sumEl.innerHTML=[
+    '<span>👨‍🎓 <strong>'+list.length+'</strong> students</span>',
+    '<span>📚 <strong>'+totalEnrollments+'</strong> enrollment records</span>',
+    '<span style="color:#2e7d32;">✅ <strong>'+certsIssued+'</strong> certs issued</span>',
+    '<span style="color:#e65100;">⏳ <strong>'+certsPending+'</strong> certs pending</span>',
+    urgent?'<span class="urgent-flag">🚨 '+urgent+' urgent</span>':''
+  ].filter(Boolean).join('<span style="color:var(--border);margin:0 4px;">|</span>');
+
+  const container=document.getElementById('students-container');if(!container)return;
+  if(!list.length){container.innerHTML='<div class="empty-state"><div class="empty-icon">🎓</div><p>No students found. Add students or adjust your filters.</p></div>';return;}
+
+  container.innerHTML='<div class="student-grid">'+list.map(s=>{
+    const enrollments=s.enrollments||[];
+    const certCount=enrollments.filter(e=>e.certIssued===true).length;
+    const isUrgent=(s.tags||[]).includes('urgent');
+    const cardColor=isUrgent?'var(--danger)':certCount===enrollments.length&&enrollments.length>0?'var(--green)':'var(--navy)';
+    return'<div class="student-card" style="border-left-color:'+cardColor+'" onclick="viewStudent(\''+s.id+'\')">'+
+      '<div class="student-card-actions">'+
+        '<button class="btn btn-outline btn-sm btn-icon" onclick="event.stopPropagation();openStudentModal(\''+s.id+'\')" title="Edit">✏️</button>'+
+        '<button class="btn btn-danger btn-sm btn-icon" onclick="event.stopPropagation();deleteStudent(\''+s.id+'\')" title="Delete">🗑</button>'+
+      '</div>'+
+      '<div class="student-card-header">'+
+        '<div class="student-avatar" style="background:'+(isUrgent?'var(--danger)':cardColor)+'">'+initials(s.fname,s.lname)+'</div>'+
+        '<div><div class="student-name">'+s.fname+' '+s.lname+(isUrgent?' <span class="urgent-flag">🚨 URGENT</span>':'')+'</div>'+
+        '<div class="student-org">'+(s.orgName||s.country||'—')+'</div></div>'+
+      '</div>'+
+      '<div class="student-meta">'+
+        (s.country?'<span class="country-tag">🌍 '+s.country+'</span>':'')+
+        (s.proboardPin?'<span class="tag navy">PIN: '+s.proboardPin+'</span>':'')+
+        (s.title?'<span class="tag">'+s.title+'</span>':'')+
+      '</div>'+
+      (enrollments.length?
+        '<div class="student-enrollments">'+enrollments.slice(0,3).map(e=>
+          '<div class="enrollment-row">'+
+            '<span class="enrollment-course">'+e.courseName+'</span>'+
+            scoreBadge(e)+' '+certBadge(e)+
+          '</div>'
+        ).join('')+
+        (enrollments.length>3?'<div style="font-size:11px;color:var(--text-muted);padding-top:4px;">+'+( enrollments.length-3)+' more courses</div>':'')+
+        '</div>':
+        '<div style="font-size:12px;color:var(--text-muted);font-style:italic;">No enrollments yet</div>'
+      )+
+    '</div>';
+  }).join('')+'</div>';
+}
+
+function viewStudent(id){
+  const s=getStudents().find(x=>x.id===id);if(!s)return;
+  document.getElementById('students-list-view').style.display='none';
+  const dv=document.getElementById('student-detail-view');dv.style.display='block';
+  const enrollments=s.enrollments||[];
+  const certsIssued=enrollments.filter(e=>e.certIssued===true).length;
+  const totalPaid=enrollments.reduce((a,e)=>a+(e.amountPaid||0),0);
+  const isUrgent=(s.tags||[]).includes('urgent');
+
+  dv.innerHTML='<div class="breadcrumb"><span onclick="showStudentsList()">Students</span> <span style="color:var(--gray);">›</span> '+s.fname+' '+s.lname+'</div>'+
+    '<div class="student-detail-header">'+
+      '<div class="student-detail-avatar">'+initials(s.fname,s.lname)+'</div>'+
+      '<div class="student-detail-info">'+
+        '<h2>'+s.fname+' '+s.lname+(isUrgent?' <span class="urgent-flag">🚨 URGENT</span>':'')+'</h2>'+
+        '<div style="color:rgba(255,255,255,0.7);font-size:13px;margin-top:4px;">'+(s.title?s.title+' · ':'')+(s.orgName||'Independent')+'</div>'+
+        '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">'+
+          (s.country?'<span class="country-tag" style="background:rgba(255,255,255,0.15);color:white;">🌍 '+s.country+'</span>':'')+
+          (s.proboardPin?'<span class="tag" style="background:rgba(255,255,255,0.15);color:white;">🔑 PIN: '+s.proboardPin+'</span>':'')+
+          (s.tags||[]).filter(t=>t!=='urgent').map(t=>'<span class="tag" style="background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.7);">'+t+'</span>').join('')+
+        '</div>'+
+      '</div>'+
+      '<div class="student-stats">'+
+        '<div class="student-stat"><div class="student-stat-val">'+enrollments.length+'</div><div class="student-stat-label">Courses</div></div>'+
+        '<div class="student-stat"><div class="student-stat-val">'+certsIssued+'</div><div class="student-stat-label">Certs</div></div>'+
+        '<div class="student-stat"><div class="student-stat-val" style="font-size:18px;">$'+totalPaid.toLocaleString()+'</div><div class="student-stat-label">Paid</div></div>'+
+      '</div>'+
+      '<div style="margin-left:16px;display:flex;flex-direction:column;gap:6px;">'+
+        '<button class="btn btn-success btn-sm" onclick="openStudentModal(\''+s.id+'\')">✏️ Edit</button>'+
+        '<button class="btn btn-outline btn-sm" style="color:white;border-color:rgba(255,255,255,0.3);" onclick="openEnrollmentModal(\''+s.id+'\')">+ Add Course</button>'+
+      '</div>'+
+    '</div>'+
+    '<div class="detail-grid">'+
+      '<div class="card"><div class="card-header"><h3>📋 Student Info</h3></div><div class="card-body">'+
+        '<table style="width:100%;font-size:13px;border-collapse:collapse;">'+
+          '<tr><td style="padding:6px 0;color:var(--text-muted);width:120px;">Email</td><td>'+(s.email?'<a href="mailto:'+s.email+'">'+s.email+'</a>':'—')+'</td></tr>'+
+          '<tr><td style="padding:6px 0;color:var(--text-muted);">Phone</td><td>'+(s.phone?'<a href="tel:'+s.phone+'">'+s.phone+'</a>':'—')+'</td></tr>'+
+          '<tr><td style="padding:6px 0;color:var(--text-muted);">Organization</td><td>'+(s.orgName||'—')+'</td></tr>'+
+          '<tr><td style="padding:6px 0;color:var(--text-muted);">Country</td><td>'+(s.country||'—')+'</td></tr>'+
+          '<tr><td style="padding:6px 0;color:var(--text-muted);">Pro Board PIN</td><td>'+(s.proboardPin||'—')+'</td></tr>'+
+          '<tr><td style="padding:6px 0;color:var(--text-muted);">Added</td><td>'+formatDate(new Date(s.created).toISOString().split('T')[0])+'</td></tr>'+
+        '</table>'+
+        (s.notes?'<div style="margin-top:12px;padding:10px;background:var(--surface2);border-radius:var(--radius-sm);font-size:12px;color:var(--text-muted);">'+s.notes+'</div>':'')+
+      '</div></div>'+
+      '<div class="card" style="grid-column:1/-1;"><div class="card-header"><h3>📚 Course Transcript ('+enrollments.length+')</h3><button class="btn btn-primary btn-sm" onclick="openEnrollmentModal(\''+s.id+'\')">+ Add Course</button></div>'+
+        '<div class="card-body" style="padding:0;overflow-x:auto;">'+
+        (enrollments.length?
+          '<table class="transcript-table">'+
+          '<thead><tr><th>Course</th><th>Date</th><th>Location</th><th>Payment</th><th>Exam</th><th>Score</th><th>Certificate</th><th>PIN</th><th></th></tr></thead>'+
+          '<tbody>'+enrollments.map((e,i)=>
+            '<tr>'+
+              '<td><strong>'+e.courseName+'</strong></td>'+
+              '<td>'+(e.date||'—')+'</td>'+
+              '<td style="font-size:12px;color:var(--text-muted);">'+(e.location||'—')+'</td>'+
+              '<td><span class="tag '+(e.paymentStatus==='Paid'?'green':'')+'">'+e.paymentStatus+'</span>'+(e.amountPaid?'<br><span style="font-size:11px;color:var(--text-muted);">$'+e.amountPaid+'</span>':'')+'</td>'+
+              '<td>'+(e.examResult?'<span class="exam-score '+(e.examResult==='Pass'||e.examScore>=70?'score-pass':'score-fail')+'">'+e.examResult+'</span>':'<span style="color:var(--text-muted);font-size:12px;">—</span>')+'</td>'+
+              '<td>'+scoreBadge(e)+'</td>'+
+              '<td>'+certBadge(e)+(e.certDate?'<br><span style="font-size:10px;color:var(--text-muted);">'+e.certDate+'</span>':'')+'</td>'+
+              '<td style="font-size:11px;color:var(--text-muted);">'+(e.proboardPin||s.proboardPin||'—')+'</td>'+
+              '<td style="white-space:nowrap;">'+
+                '<button class="btn btn-outline btn-sm btn-icon" onclick="openEnrollmentModal(\''+s.id+'\','+i+')" title="Edit">✏️</button> '+
+                '<button class="btn btn-danger btn-sm btn-icon" onclick="deleteEnrollment(\''+s.id+'\','+i+')" title="Remove">🗑</button>'+
+              '</td>'+
+            '</tr>'
+          ).join('')+
+          '</tbody></table>':
+          '<div class="empty-state" style="padding:30px;"><div class="empty-icon">📚</div><p>No enrollments yet. Add a course to start building this student\'s transcript.</p><button class="btn btn-primary" style="margin-top:12px;" onclick="openEnrollmentModal(\''+s.id+'\')">+ Add First Course</button></div>'
+        )+
+        '</div></div>'+
+    '</div>';
+}
+
+function showStudentsList(){
+  document.getElementById('students-list-view').style.display='';
+  document.getElementById('student-detail-view').style.display='none';
+  renderStudents();
+}
+
+function updateStudentBadge(){
+  const urgent=(DB.students||[]).filter(s=>(s.tags||[]).includes('urgent')).length;
+  const bs=document.getElementById('badge-students');
+  const total=(DB.students||[]).length;
+  if(bs){bs.textContent=urgent||total;bs.style.display=total?'inline-block':'none';}
+}
+
+function exportStudentsCSV(){
+  const students=getStudents();
+  if(!students.length){toast('No students to export.',true);return;}
+  const rows=[['First Name','Last Name','Email','Phone','Country','Organization','Title','Pro Board PIN','Tags','Notes','Courses','Certs Issued','Total Paid']];
+  students.forEach(s=>{
+    const enrollments=s.enrollments||[];
+    rows.push([
+      s.fname,s.lname,s.email,s.phone,s.country,s.orgName,s.title,s.proboardPin,
+      (s.tags||[]).join('; '),s.notes,
+      enrollments.map(e=>e.courseName).join('; '),
+      enrollments.filter(e=>e.certIssued===true).length,
+      enrollments.reduce((a,e)=>a+(e.amountPaid||0),0)
+    ]);
+  });
+  const csv=rows.map(r=>r.map(v=>'"'+(String(v||'').replace(/"/g,'""'))+'"').join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='BB-Students-'+todayStr()+'.csv';a.click();
+  toast('📥 Student CSV exported.');
+}
+
 // ─── INIT ───
 load();
 renderDashboard();
 renderAIHistory();
 updateBadges();
+updateStudentBadge();
 if(DB.apiKey)document.getElementById('api-key-status').textContent='API key saved ✓';
 </script>
 </body>
