@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Boes & Boes Command Center v4.0</title>
+<title>Boes & Boes Command Center v4.1</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@300;400;500;600&display=swap');
   :root {
@@ -249,7 +249,7 @@
   <div class="sidebar-logo">
     <div class="brand">Boes &amp; Boes</div>
     <div class="sub">Training Consultants LLC</div>
-    <div class="ver">Command Center v4.0</div>
+    <div class="ver">Command Center v4.1</div>
   </div>
   <div class="nav-section-label">Core</div>
   <div class="nav-item active" onclick="navigate('dashboard')"><span class="nav-icon">📊</span> Dashboard</div>
@@ -270,7 +270,9 @@
   <div class="nav-item" onclick="navigate('production')"><span class="nav-icon">⚙️</span> Production</div>
   <div class="nav-item" onclick="exportData()"><span class="nav-icon">💾</span> Export Data</div>
   <div class="nav-item" onclick="importData()"><span class="nav-icon">📥</span> Import Data</div>
-  <div class="sidebar-footer">Fort Wayne, Indiana · EIN 82-5104995<br><span id="last-saved-label">Ready</span></div>
+  <div class="nav-item" onclick="syncToSheets(true)"><span class="nav-icon">☁️</span> Sync to Sheets</div>
+  <div class="nav-item" onclick="openSyncSettings()"><span class="nav-icon">🔗</span> Sync Settings</div>
+  <div class="sidebar-footer">Fort Wayne, Indiana · EIN 82-5104995<br><span id="last-saved-label">Ready</span><br><span id="sync-status-label">Sheets sync: off</span></div>
 </nav>
 
 <div id="main">
@@ -993,7 +995,7 @@ const PRODUCTION_STAGES=['Researching','Planning','Execution','Delivery','Closeo
 function defaultData(){return{contacts:[],deals:[],tasks:[],activities:[],aiHistory:[],apiKey:'',version:'4.0'};}
 let DB=defaultData();
 
-function save(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(DB));document.getElementById('last-saved-label').textContent='Saved '+new Date().toLocaleTimeString();}catch(e){toast('Save error: '+e.message,true);}}
+function save(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(DB));document.getElementById('last-saved-label').textContent='Saved '+new Date().toLocaleTimeString();scheduleSync();}catch(e){toast('Save error: '+e.message,true);}}
 
 // Correct v3.1 migration (matches real v3.1 structure)
 function migrateV31(v31){
@@ -1330,6 +1332,64 @@ function logEmailToActivity(){const to=document.getElementById('gmail-to').value
 
 // ─── EXPORT/IMPORT ───
 function exportData(){const blob=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='BoesCommandCenter-backup-'+todayStr()+'.json';a.click();toast('💾 Data exported.');}
+
+// ══════════ GOOGLE SHEETS SYNC (v4.1) ══════════
+// Pushes a read-only mirror of CRM + Accounting data to a Google Sheet via
+// an Apps Script web app. Auto-syncs (debounced) after every save.
+// Never syncs the Anthropic API key or AI chat history.
+const SYNC_KEY='boes_crm_sync_cfg';
+let SYNC={url:'',token:'',auto:true,lastSync:0};
+let syncTimer=null,syncInFlight=false;
+function loadSyncCfg(){const raw=localStorage.getItem(SYNC_KEY);if(raw){try{SYNC={...SYNC,...JSON.parse(raw)};}catch(e){}}updateSyncLabel();}
+function saveSyncCfg(){try{localStorage.setItem(SYNC_KEY,JSON.stringify(SYNC));}catch(e){}updateSyncLabel();}
+function updateSyncLabel(msg){const el=document.getElementById('sync-status-label');if(!el)return;
+  if(msg){el.textContent=msg;return;}
+  if(!SYNC.url){el.textContent='Sheets sync: off';}
+  else if(SYNC.lastSync){el.textContent='Synced '+new Date(SYNC.lastSync).toLocaleTimeString();}
+  else{el.textContent='Sheets sync: ready';}}
+function openSyncSettings(){
+  const url=prompt('Apps Script web app URL (ends in /exec).\nLeave blank to turn sync off.',SYNC.url||'');
+  if(url===null)return;
+  SYNC.url=url.trim();
+  if(SYNC.url){
+    const tok=prompt('Sync passphrase (must match SECRET in your Apps Script):',SYNC.token||'');
+    if(tok===null)return;SYNC.token=tok.trim();
+    SYNC.auto=confirm('Auto-sync after every save?\nOK = auto-sync on · Cancel = manual only');
+  }
+  saveSyncCfg();
+  toast(SYNC.url?'🔗 Sheets sync configured.':'Sheets sync turned off.');
+  if(SYNC.url)syncToSheets(true);
+}
+function isoOrBlank(ms){return ms?new Date(ms).toISOString():'';}
+function buildSyncPayload(){
+  const dealRow=d=>({id:d.id,title:d.title||'',org:d.org||'',contact:d.contact||'',value:d.value||0,stage:d.stage||'',probability:d.probability||0,weightedValue:Math.round((d.value||0)*(d.probability||0))/100,startDate:d.startDate||'',closeDate:d.closeDate||'',notes:d.notes||'',created:isoOrBlank(d.created)});
+  return{token:SYNC.token,source:'Boes & Boes Command Center',version:DB.version||'4.0',collections:{
+    Pipeline:DB.deals.filter(d=>d.board==='pipeline').map(dealRow),
+    Production:DB.deals.filter(d=>d.board==='production').map(dealRow),
+    Tasks:(DB.tasks||[]).map(t=>({...t,created:isoOrBlank(t.created)})),
+    Contacts:DB.contacts||[],
+    Students:DB.students||[],
+    Activities:(DB.activities||[]).slice(0,300).map(a=>({...a,ts:a.ts?new Date(a.ts).toISOString():''})),
+    Jobs:(ACCT.jobs||[]),
+    Expenses:(ACCT.expenses||[]),
+    Overhead:(ACCT.overhead||[])
+  }};
+}
+function scheduleSync(){if(!SYNC.url||!SYNC.auto)return;clearTimeout(syncTimer);syncTimer=setTimeout(()=>syncToSheets(false),5000);}
+async function syncToSheets(manual){
+  if(!SYNC.url){if(manual)openSyncSettings();return;}
+  if(syncInFlight)return;syncInFlight=true;updateSyncLabel('Syncing…');
+  try{
+    const resp=await fetch(SYNC.url,{method:'POST',body:JSON.stringify(buildSyncPayload())});
+    let ok=resp.ok,detail='';
+    try{const j=await resp.json();ok=!!j.ok;detail=j.error||'';}catch(e){}
+    if(ok){SYNC.lastSync=Date.now();saveSyncCfg();if(manual)toast('☁️ Synced to Google Sheets.');}
+    else{updateSyncLabel('Sync failed');toast('Sheets sync failed'+(detail?': '+detail:'')+'. Check Sync Settings.',true);}
+  }catch(err){updateSyncLabel('Sync failed');if(manual)toast('Sheets sync error: '+err.message,true);}
+  finally{syncInFlight=false;if(SYNC.lastSync)updateSyncLabel();}
+}
+loadSyncCfg();
+// ══════════ END GOOGLE SHEETS SYNC ══════════
 function importData(){document.getElementById('import-file-input').click();}
 function handleImport(e){const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=ev=>{try{const imported=JSON.parse(ev.target.result);if(confirm('Import data? This will replace current data.\nContacts: '+(imported.contacts||[]).length+' | Projects: '+(imported.deals||[]).length+' | Tasks: '+(imported.tasks||[]).length)){DB={...defaultData(),...imported};save();renderDashboard();updateBadges();toast('✅ Data imported successfully!');}}catch(err){toast('Import error: '+err.message,true);}};reader.readAsText(file);e.target.value='';}
 
@@ -1670,7 +1730,7 @@ const OH_CATS=['Rent / Facilities','Insurance','Software / Subscriptions','Profe
 function defaultAcct(){return{jobs:[],expenses:[],overhead:[],version:'2.0'};}
 let ACCT=defaultAcct();
 
-function saveAcct(){try{localStorage.setItem(ACCT_KEY,JSON.stringify(ACCT));}catch(e){toast('Accounting save error: '+e.message,true);}}
+function saveAcct(){try{localStorage.setItem(ACCT_KEY,JSON.stringify(ACCT));scheduleSync();}catch(e){toast('Accounting save error: '+e.message,true);}}
 function loadAcct(){const raw=localStorage.getItem(ACCT_KEY);if(raw){try{ACCT={...defaultAcct(),...JSON.parse(raw)};}catch(e){}}}
 
 // ── HELPERS ──
