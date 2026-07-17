@@ -345,6 +345,7 @@
           </div>
           <select class="inline-select" id="contact-filter-tag" onchange="renderContacts()"><option value="">All Tags</option></select>
           <button class="btn btn-primary btn-sm" onclick="openModal('modal-contact')">+ Add Contact</button>
+          <button class="btn btn-outline btn-sm" onclick="loadCertPartnerLeads()">📥 Load Certification Partner Leads</button>
         </div>
         <div class="card">
           <table class="data-table">
@@ -993,6 +994,33 @@ const PIPELINE_STAGES=['Prospect','Qualified','Proposal','Negotiation','Closed W
 const PRODUCTION_STAGES=['Researching','Planning','Execution','Delivery','Closeout'];
 
 function defaultData(){return{contacts:[],deals:[],tasks:[],activities:[],aiHistory:[],apiKey:'',version:'4.0'};}
+
+// ─── CERTIFICATION PARTNER LEADS (ProBoard / IFSAC — ConocoPhillips Sept program) ───
+const CERT_PARTNER_LEADS=[
+  {fname:'',lname:'',org:'Fire Science Academy - Kingdom of Saudi Arabia (FSA-KSA)',phone:'+966 13 341 7076',email:'jaafar@fsa-ksa.com',tags:['ifsac-lead','proboard-lead','saudi-arabia','oil-gas'],notes:'Contact: Jaafar Al-Katheri (Director of Academic Operations). Dual ProBoard + IFSAC accredited, Reaccredited/Voting Member. Jubail Industrial City. Top pick — fastest path. Outreach email drafted.'},
+  {fname:'Zeyad',lname:'Sagr',org:'Arab Fire Safety and Security Academy (AFSSAC)',phone:'966 2 637 0448',email:'zeyad@afssac.edu.sa',tags:['ifsac-lead','saudi-arabia'],notes:'Jeddah, Saudi Arabia. IFSAC Voting Member, Reaccredited. NFPA-code-compliant training, holds Saudi TVTC/Civil Defense permits. Outreach email drafted.'},
+  {fname:'',lname:'',org:'International Company for Security Services and Training (ICSST)',phone:'+974 (Doha office)',email:'info@icsst.qa',tags:['ifsac-lead','qatar','oil-gas'],notes:'Doha, Qatar. First Qatar provider to complete IFSAC accreditation across 8 course programs; oil & gas industry focus — strong ConocoPhillips fit. Non-Voting Member, Reaccredited. Outreach email drafted.'},
+  {fname:'Charles',lname:'Olson',org:'Saudi Aramco Fire Protection Department',phone:'966-13-677-8701',email:'',tags:['ifsac-lead','saudi-arabia','oil-gas'],notes:'Juaymah, Saudi Arabia. IFSAC Voting Member, Reaccredited. Large internal Aramco training operation — partnership may involve more internal process/slower timeline. Outreach email drafted.'},
+  {fname:'Khalid Hamad',lname:'Al-Hajri',org:'Ras Laffan Emergency & Safety College (Qatar Petroleum)',phone:'974 4014 6726',email:'',tags:['ifsac-lead','qatar','oil-gas','priority'],notes:'Major Khalid Hamad Al-Hajri. Ras Laffan Industrial City, Doha, Qatar. IFSAC Voting Member, Reaccredited. Petroleum-company-operated training college — very strong ConocoPhillips industry match.'},
+  {fname:'Bader Naif',lname:'Al-Daihani',org:'Kuwait National Petroleum Company',phone:'+965 23859922',email:'',tags:['ifsac-lead','kuwait','oil-gas','priority'],notes:'KNPC MSEOC Facilities, Al-Ahmadi, Kuwait. IFSAC Voting Member, Accredited. Oil company-operated training arm — strong industry match for ConocoPhillips.'}
+];
+
+function loadCertPartnerLeads(){
+  DB.contacts=DB.contacts||[];
+  let added=0,skipped=0;
+  CERT_PARTNER_LEADS.forEach(lead=>{
+    const exists=DB.contacts.some(c=>(lead.email&&c.email&&c.email.toLowerCase()===lead.email.toLowerCase())||(c.org&&c.org.toLowerCase()===lead.org.toLowerCase()));
+    if(exists){skipped++;return;}
+    const c={id:uid(),fname:lead.fname,lname:lead.lname,org:lead.org,phone:lead.phone,email:lead.email,tags:lead.tags,notes:lead.notes,created:Date.now()};
+    DB.contacts.unshift(c);
+    logActivity({type:'note',title:'Certification partner lead loaded: '+(lead.org),contact:(lead.fname+' '+lead.lname).trim()||lead.org,notes:'Auto-loaded via Certification Partner Leads import.'});
+    added++;
+  });
+  save();
+  if(typeof renderContacts==='function')renderContacts();
+  if(typeof renderDashboard==='function')renderDashboard();
+  toast('✅ Loaded '+added+' certification partner lead(s)'+(skipped?' ('+skipped+' already existed)':'')+'.');
+}
 let DB=defaultData();
 
 function save(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(DB));document.getElementById('last-saved-label').textContent='Saved '+new Date().toLocaleTimeString();scheduleSync();}catch(e){toast('Save error: '+e.message,true);}}
