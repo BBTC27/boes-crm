@@ -241,6 +241,50 @@
   .transcript-table tr:hover td{background:var(--surface2);}
   .urgent-flag{display:inline-flex;align-items:center;gap:4px;background:#fde8e8;color:var(--danger);padding:3px 9px;border-radius:10px;font-size:11px;font-weight:700;animation:pulse 2s infinite;}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.65}}
+
+  /* ── FOCUS BAR (persistent, all views) ── */
+  #focus-bar{background:linear-gradient(135deg,var(--navy-dark) 0%,var(--navy) 100%);color:white;padding:9px 24px;display:flex;align-items:center;gap:14px;position:sticky;top:var(--header-h);z-index:49;box-shadow:0 2px 6px rgba(0,0,0,0.12);}
+  #focus-bar .fb-label{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--green);flex-shrink:0;}
+  #focus-bar .fb-text{font-size:13.5px;font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  #focus-bar .fb-text.empty{color:rgba(255,255,255,0.45);font-style:italic;}
+  #focus-bar .fb-meta{font-size:11px;color:rgba(255,255,255,0.45);flex-shrink:0;}
+  #focus-bar .fb-edit{background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);color:white;font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;cursor:pointer;flex-shrink:0;}
+  #focus-bar .fb-edit:hover{background:rgba(255,255,255,0.22);}
+
+  /* ── QUICK LOG FLOATING BUTTON ── */
+  #quicklog-fab{position:fixed;bottom:26px;right:26px;width:56px;height:56px;border-radius:50%;background:var(--green);color:var(--navy-dark);border:none;font-size:24px;box-shadow:0 4px 14px rgba(0,0,0,0.25);cursor:pointer;z-index:200;display:flex;align-items:center;justify-content:center;transition:transform 0.15s;}
+  #quicklog-fab:hover{transform:scale(1.08);background:var(--green-light);}
+  #quicklog-fab .fab-badge{position:absolute;top:-4px;right:-4px;background:var(--danger);color:white;font-size:10px;font-weight:700;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px;}
+
+  /* ── COMMAND CENTER ── */
+  .cc-grid{display:grid;grid-template-columns:1.3fr 1fr;gap:20px;align-items:start;}
+  @media(max-width:900px){.cc-grid{grid-template-columns:1fr;}}
+  .cc-focus-card{background:linear-gradient(135deg,var(--navy-dark) 0%,var(--navy) 100%);border-radius:var(--radius);padding:22px 24px;color:white;margin-bottom:20px;}
+  .cc-focus-card h3{font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;color:var(--green);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;}
+  .cc-focus-card .cc-focus-title{font-size:19px;font-weight:600;margin-bottom:6px;}
+  .cc-focus-card .cc-focus-breadcrumb{font-size:13.5px;color:rgba(255,255,255,0.72);line-height:1.5;}
+  .cc-focus-card .cc-focus-meta{font-size:11px;color:rgba(255,255,255,0.4);margin-top:12px;}
+  .cc-focus-card .cc-focus-empty{color:rgba(255,255,255,0.5);font-style:italic;}
+  .pq-item{display:flex;align-items:flex-start;gap:10px;padding:11px 0;border-bottom:1px solid var(--border);}
+  .pq-item:last-child{border-bottom:none;}
+  .pq-rank{width:22px;height:22px;border-radius:50%;background:var(--surface2);color:var(--text-muted);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+  .pq-body{flex:1;min-width:0;}
+  .pq-title{font-size:13.5px;font-weight:600;}
+  .pq-meta{font-size:11.5px;color:var(--text-muted);margin-top:2px;}
+  .pq-stale{color:var(--danger);font-weight:600;}
+  .pq-actions{display:flex;gap:6px;flex-shrink:0;}
+  .signal-item{display:flex;align-items:flex-start;gap:10px;padding:11px 12px;border-radius:var(--radius-sm);margin-bottom:8px;border:1px solid var(--border);background:var(--surface2);}
+  .signal-item.urgent{border-color:var(--danger);background:#fdecec;}
+  .signal-item.handled{opacity:0.5;}
+  .signal-chan{width:30px;height:30px;border-radius:50%;background:var(--white);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;border:1px solid var(--border);}
+  .signal-body{flex:1;min-width:0;}
+  .signal-from{font-size:13px;font-weight:600;}
+  .signal-note{font-size:12.5px;color:var(--text-muted);margin-top:2px;}
+  .signal-meta{font-size:10.5px;color:var(--text-muted);margin-top:3px;}
+  .signal-actions{display:flex;gap:6px;flex-shrink:0;}
+  .cc-empty{color:var(--text-muted);font-size:13px;font-style:italic;padding:10px 0;}
+  .upgrade-banner{background:#fff8e6;border:1px solid #f0d98c;border-radius:var(--radius-sm);padding:12px 14px;font-size:12.5px;color:#7a5c00;margin-bottom:16px;display:flex;align-items:center;gap:10px;}
+  .upgrade-banner b{color:#5c4600;}
 </style>
 </head>
 <body>
@@ -251,8 +295,10 @@
     <div class="sub">Training Consultants LLC</div>
     <div class="ver">Command Center v4.1</div>
   </div>
+  <div class="nav-section-label">Focus</div>
+  <div class="nav-item active" onclick="navigate('command-center')"><span class="nav-icon">🎯</span> Command Center <span class="nav-badge" id="badge-signals" style="display:none">0</span></div>
   <div class="nav-section-label">Core</div>
-  <div class="nav-item active" onclick="navigate('dashboard')"><span class="nav-icon">📊</span> Dashboard</div>
+  <div class="nav-item" onclick="navigate('dashboard')"><span class="nav-icon">📊</span> Dashboard</div>
   <div class="nav-item" onclick="navigate('pipeline')"><span class="nav-icon">🔀</span> Pipeline <span class="nav-badge green" id="badge-pipeline">0</span></div>
   <div class="nav-item" onclick="navigate('contacts')"><span class="nav-icon">👥</span> Contacts</div>
   <div class="nav-item" onclick="navigate('students')"><span class="nav-icon">🎓</span> Students <span class="nav-badge green" id="badge-students">0</span></div>
@@ -284,10 +330,38 @@
       <button class="btn btn-success btn-sm" onclick="openModal('modal-deal')">+ Project</button>
     </div>
   </div>
+  <div id="focus-bar">
+    <span class="fb-label">🎯 Focus</span>
+    <span class="fb-text empty" id="focus-bar-text">Nothing set — click Command Center to point yourself at a task.</span>
+    <span class="fb-meta" id="focus-bar-meta"></span>
+    <button class="fb-edit" onclick="openFocusModal()">Edit</button>
+  </div>
   <div id="content">
 
+    <!-- COMMAND CENTER -->
+    <div id="view-command-center" class="view active">
+      <div class="upgrade-banner">⚠️ <span><b>Upgrade in progress:</b> Migrate to WhatsApp Business API so incoming messages can be monitored here automatically. Tracked as a priority task below until complete.</span></div>
+      <div class="cc-focus-card">
+        <h3>Current Focus</h3>
+        <div class="cc-focus-title" id="cc-focus-title">Nothing set</div>
+        <div class="cc-focus-breadcrumb" id="cc-focus-breadcrumb">Click "Set Focus" to point yourself at what you're working on right now — especially useful right before you get pulled away.</div>
+        <div class="cc-focus-meta" id="cc-focus-meta"></div>
+        <div style="margin-top:14px;"><button class="btn btn-success btn-sm" onclick="openFocusModal()">🎯 Set / Update Focus</button></div>
+      </div>
+      <div class="cc-grid">
+        <div class="card">
+          <div class="card-header"><h3>📌 Priority Queue</h3><button class="btn btn-outline btn-sm" onclick="navigate('tasks')">All Tasks</button></div>
+          <div class="card-body" id="cc-priority-queue"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>📡 Signal Inbox</h3><button class="btn btn-primary btn-sm" onclick="openQuickLogModal()">+ Quick Log</button></div>
+          <div class="card-body" id="cc-signal-inbox" style="max-height:520px;overflow-y:auto;"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- DASHBOARD -->
-    <div id="view-dashboard" class="view active">
+    <div id="view-dashboard" class="view">
       <div class="kpi-grid" id="kpi-grid"></div>
       <div class="dash-grid">
         <div class="card">
@@ -345,7 +419,6 @@
           </div>
           <select class="inline-select" id="contact-filter-tag" onchange="renderContacts()"><option value="">All Tags</option></select>
           <button class="btn btn-primary btn-sm" onclick="openModal('modal-contact')">+ Add Contact</button>
-          <button class="btn btn-outline btn-sm" onclick="loadCertPartnerLeads()">📥 Load Certification Partner Leads</button>
         </div>
         <div class="card">
           <table class="data-table">
@@ -589,6 +662,49 @@
       </div>
     </div>
 
+  </div>
+</div>
+
+<button id="quicklog-fab" title="Quick Log (WhatsApp / text / call / email)" onclick="openQuickLogModal()">
+  ✚<span class="fab-badge" id="fab-signal-badge" style="display:none">0</span>
+</button>
+
+<div class="modal-overlay" id="modal-focus">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header"><h3>🎯 Set Current Focus</h3><button class="modal-close" onclick="closeModal('modal-focus')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">What are you working on right now?</label><input class="form-control" id="focus-title" placeholder="e.g. FSA-KSA certification partnership"></div>
+      <div class="form-group"><label class="form-label">Where you left off / next step</label><textarea class="form-control" id="focus-breadcrumb" placeholder="e.g. Called Jaafar, no answer — texted him, waiting on reply before trying SABIC again" rows="3"></textarea></div>
+      <div class="form-group"><label class="form-label">Link to contact or project (optional)</label><input class="form-control" id="focus-link" placeholder="e.g. Jaafar Al-Katheri / FSA-KSA partnership"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="clearFocus()">Clear Focus</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-focus')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveFocus()">Save Focus</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-quicklog">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header"><h3>📡 Quick Log</h3><button class="modal-close" onclick="closeModal('modal-quicklog')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Channel</label>
+          <select class="form-control" id="ql-channel">
+            <option value="whatsapp">WhatsApp</option>
+            <option value="text">Text / SMS</option>
+            <option value="call">Phone Call</option>
+            <option value="email">Email</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">From</label><input class="form-control" id="ql-from" placeholder="e.g. Jaafar Al-Katheri"></div>
+      </div>
+      <div class="form-group"><label class="form-label">What happened / note</label><textarea class="form-control" id="ql-note" placeholder="e.g. Replied he's available Thursday 10am KSA time" rows="3"></textarea></div>
+      <div class="form-group"><label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;cursor:pointer;"><input type="checkbox" id="ql-urgent" style="width:16px;height:16px;"> Mark as urgent / important</label></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-quicklog')">Cancel</button><button class="btn btn-primary" onclick="saveSignal()">Log It</button></div>
   </div>
 </div>
 
@@ -993,34 +1109,7 @@ const V31_KEY='boes_crm_v31';
 const PIPELINE_STAGES=['Prospect','Qualified','Proposal','Negotiation','Closed Won','Closed Lost'];
 const PRODUCTION_STAGES=['Researching','Planning','Execution','Delivery','Closeout'];
 
-function defaultData(){return{contacts:[],deals:[],tasks:[],activities:[],aiHistory:[],apiKey:'',version:'4.0'};}
-
-// ─── CERTIFICATION PARTNER LEADS (ProBoard / IFSAC — ConocoPhillips Sept program) ───
-const CERT_PARTNER_LEADS=[
-  {fname:'',lname:'',org:'Fire Science Academy - Kingdom of Saudi Arabia (FSA-KSA)',phone:'+966 13 341 7076',email:'jaafar@fsa-ksa.com',tags:['ifsac-lead','proboard-lead','saudi-arabia','oil-gas'],notes:'Contact: Jaafar Al-Katheri (Director of Academic Operations). Dual ProBoard + IFSAC accredited, Reaccredited/Voting Member. Jubail Industrial City. Top pick — fastest path. Outreach email drafted.'},
-  {fname:'Zeyad',lname:'Sagr',org:'Arab Fire Safety and Security Academy (AFSSAC)',phone:'966 2 637 0448',email:'zeyad@afssac.edu.sa',tags:['ifsac-lead','saudi-arabia'],notes:'Jeddah, Saudi Arabia. IFSAC Voting Member, Reaccredited. NFPA-code-compliant training, holds Saudi TVTC/Civil Defense permits. Outreach email drafted.'},
-  {fname:'',lname:'',org:'International Company for Security Services and Training (ICSST)',phone:'+974 (Doha office)',email:'info@icsst.qa',tags:['ifsac-lead','qatar','oil-gas'],notes:'Doha, Qatar. First Qatar provider to complete IFSAC accreditation across 8 course programs; oil & gas industry focus — strong ConocoPhillips fit. Non-Voting Member, Reaccredited. Outreach email drafted.'},
-  {fname:'Charles',lname:'Olson',org:'Saudi Aramco Fire Protection Department',phone:'966-13-677-8701',email:'',tags:['ifsac-lead','saudi-arabia','oil-gas'],notes:'Juaymah, Saudi Arabia. IFSAC Voting Member, Reaccredited. Large internal Aramco training operation — partnership may involve more internal process/slower timeline. Outreach email drafted.'},
-  {fname:'Khalid Hamad',lname:'Al-Hajri',org:'Ras Laffan Emergency & Safety College (Qatar Petroleum)',phone:'974 4014 6726',email:'',tags:['ifsac-lead','qatar','oil-gas','priority'],notes:'Major Khalid Hamad Al-Hajri. Ras Laffan Industrial City, Doha, Qatar. IFSAC Voting Member, Reaccredited. Petroleum-company-operated training college — very strong ConocoPhillips industry match.'},
-  {fname:'Bader Naif',lname:'Al-Daihani',org:'Kuwait National Petroleum Company',phone:'+965 23859922',email:'',tags:['ifsac-lead','kuwait','oil-gas','priority'],notes:'KNPC MSEOC Facilities, Al-Ahmadi, Kuwait. IFSAC Voting Member, Accredited. Oil company-operated training arm — strong industry match for ConocoPhillips.'}
-];
-
-function loadCertPartnerLeads(){
-  DB.contacts=DB.contacts||[];
-  let added=0,skipped=0;
-  CERT_PARTNER_LEADS.forEach(lead=>{
-    const exists=DB.contacts.some(c=>(lead.email&&c.email&&c.email.toLowerCase()===lead.email.toLowerCase())||(c.org&&c.org.toLowerCase()===lead.org.toLowerCase()));
-    if(exists){skipped++;return;}
-    const c={id:uid(),fname:lead.fname,lname:lead.lname,org:lead.org,phone:lead.phone,email:lead.email,tags:lead.tags,notes:lead.notes,created:Date.now()};
-    DB.contacts.unshift(c);
-    logActivity({type:'note',title:'Certification partner lead loaded: '+(lead.org),contact:(lead.fname+' '+lead.lname).trim()||lead.org,notes:'Auto-loaded via Certification Partner Leads import.'});
-    added++;
-  });
-  save();
-  if(typeof renderContacts==='function')renderContacts();
-  if(typeof renderDashboard==='function')renderDashboard();
-  toast('✅ Loaded '+added+' certification partner lead(s)'+(skipped?' ('+skipped+' already existed)':'')+'.');
-}
+function defaultData(){return{contacts:[],deals:[],tasks:[],activities:[],aiHistory:[],apiKey:'',version:'4.0',focus:{title:'',breadcrumb:'',link:'',updatedTs:null},signals:[],seeded:{}};}
 let DB=defaultData();
 
 function save(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(DB));document.getElementById('last-saved-label').textContent='Saved '+new Date().toLocaleTimeString();scheduleSync();}catch(e){toast('Save error: '+e.message,true);}}
@@ -1057,8 +1146,9 @@ function navigate(view){
   const el=document.getElementById('view-'+view);
   if(el){el.classList.add('active');currentView=view;}
   document.querySelectorAll('.nav-item').forEach(n=>{if(n.getAttribute('onclick')&&n.getAttribute('onclick').includes("'"+view+"'"))n.classList.add('active');});
-  const titles={dashboard:'Dashboard',pipeline:'Pipeline',contacts:'Contacts',students:'Students',tasks:'Tasks',activity:'Activity Log',ai:'AI Assistant',gmail:'Gmail',production:'Production','acct-forecast':'90-Day Forecast','acct-jobs':'Jobs & Revenue','acct-expenses':'Project Expenses','acct-overhead':'Overhead & Indirect'};
+  const titles={'command-center':'Command Center',dashboard:'Dashboard',pipeline:'Pipeline',contacts:'Contacts',students:'Students',tasks:'Tasks',activity:'Activity Log',ai:'AI Assistant',gmail:'Gmail',production:'Production','acct-forecast':'90-Day Forecast','acct-jobs':'Jobs & Revenue','acct-expenses':'Project Expenses','acct-overhead':'Overhead & Indirect'};
   document.getElementById('topbar-title').textContent=titles[view]||view;
+  if(view==='command-center')renderCommandCenter();
   if(view==='dashboard')renderDashboard();
   if(view==='pipeline')renderPipeline();
   if(view==='contacts'){showContactsList();renderContacts();}
@@ -1104,6 +1194,201 @@ function updateBadges(){
   bt.textContent=total;bt.style.display=total?'inline-block':'none';
   const open=DB.deals.filter(d=>d.board==='pipeline'&&d.stage!=='Closed Won'&&d.stage!=='Closed Lost').length;
   const bp=document.getElementById('badge-pipeline');bp.textContent=open;bp.style.display=open?'inline-block':'none';
+  updateSignalBadges();
+}
+
+// ══════════════════ COMMAND CENTER ══════════════════
+
+function seedWhatsAppUpgradeTask(){
+  if(DB.seeded && DB.seeded.whatsappTask) return;
+  if(!DB.seeded) DB.seeded={};
+  const due=new Date(); due.setDate(due.getDate()+10);
+  DB.tasks.unshift({
+    id: uid(),
+    title: 'Upgrade to WhatsApp Business API (Cloud API) for message monitoring',
+    dueDate: due.toISOString().split('T')[0],
+    priority: 'high',
+    contact: '',
+    deal: '',
+    notes: 'Volume of work-critical WhatsApp messages is significant — several/day, some important, some missed. Personal WhatsApp has no API. Requires Meta business verification. Goal: feed Signal Inbox automatically instead of manual Quick Log.',
+    done: false,
+    created: Date.now()
+  });
+  DB.seeded.whatsappTask = true;
+  logActivity({type:'task', title:'Task auto-added: Upgrade to WhatsApp Business API', notes:'Flagged from Command Center setup'});
+  save();
+}
+
+function openFocusModal(){
+  document.getElementById('focus-title').value = DB.focus?.title || '';
+  document.getElementById('focus-breadcrumb').value = DB.focus?.breadcrumb || '';
+  document.getElementById('focus-link').value = DB.focus?.link || '';
+  openModal('modal-focus');
+}
+function saveFocus(){
+  DB.focus = {
+    title: document.getElementById('focus-title').value.trim(),
+    breadcrumb: document.getElementById('focus-breadcrumb').value.trim(),
+    link: document.getElementById('focus-link').value.trim(),
+    updatedTs: Date.now()
+  };
+  save(); closeModal('modal-focus'); renderFocusBar(); renderCommandCenter();
+  toast('🎯 Focus updated.');
+}
+function clearFocus(){
+  DB.focus = {title:'',breadcrumb:'',link:'',updatedTs:null};
+  save(); closeModal('modal-focus'); renderFocusBar(); renderCommandCenter();
+  toast('Focus cleared.');
+}
+function renderFocusBar(){
+  const f = DB.focus || {};
+  const barText = document.getElementById('focus-bar-text');
+  const barMeta = document.getElementById('focus-bar-meta');
+  if(f.title){
+    barText.textContent = '🎯 ' + f.title + (f.breadcrumb ? ' — ' + f.breadcrumb : '');
+    barText.classList.remove('empty');
+    barMeta.textContent = f.updatedTs ? timeAgo(f.updatedTs) : '';
+  } else {
+    barText.textContent = 'Nothing set — click Command Center to point yourself at a task.';
+    barText.classList.add('empty');
+    barMeta.textContent = '';
+  }
+}
+
+function openQuickLogModal(){
+  document.getElementById('ql-channel').value='whatsapp';
+  document.getElementById('ql-from').value='';
+  document.getElementById('ql-note').value='';
+  document.getElementById('ql-urgent').checked=false;
+  openModal('modal-quicklog');
+}
+function saveSignal(){
+  const note = document.getElementById('ql-note').value.trim();
+  const from = document.getElementById('ql-from').value.trim();
+  if(!note && !from){ toast('Add at least a name or a note.', true); return; }
+  if(!DB.signals) DB.signals=[];
+  DB.signals.unshift({
+    id: uid(),
+    channel: document.getElementById('ql-channel').value,
+    from: from,
+    note: note,
+    urgent: document.getElementById('ql-urgent').checked,
+    handled: false,
+    ts: Date.now()
+  });
+  save(); closeModal('modal-quicklog'); renderCommandCenter(); updateSignalBadges();
+  toast('📡 Logged to Signal Inbox.');
+}
+function toggleSignalHandled(id){
+  const s=(DB.signals||[]).find(x=>x.id===id); if(!s) return;
+  s.handled=!s.handled; save(); renderCommandCenter(); updateSignalBadges();
+}
+function deleteSignal(id){
+  if(!confirm('Delete this logged signal?')) return;
+  DB.signals=(DB.signals||[]).filter(x=>x.id!==id);
+  save(); renderCommandCenter(); updateSignalBadges();
+}
+function convertSignalToTask(id){
+  const s=(DB.signals||[]).find(x=>x.id===id); if(!s) return;
+  DB.tasks.unshift({
+    id: uid(),
+    title: (s.from ? s.from+': ' : '') + (s.note || 'Follow up on ' + s.channel + ' message'),
+    dueDate: todayStr(),
+    priority: s.urgent ? 'high' : 'medium',
+    contact: s.from || '',
+    deal: '',
+    notes: 'Converted from Signal Inbox (' + s.channel + ')',
+    done: false,
+    created: Date.now()
+  });
+  s.handled = true;
+  save(); renderCommandCenter(); updateBadges();
+  toast('✅ Converted to task.');
+}
+function bumpTaskToFocus(taskId){
+  const t = DB.tasks.find(x=>x.id===taskId); if(!t) return;
+  DB.focus = {
+    title: t.title,
+    breadcrumb: (t.contact ? 'Contact: '+t.contact+'. ' : '') + (t.notes || ''),
+    link: t.contact || t.deal || '',
+    updatedTs: Date.now()
+  };
+  save(); renderFocusBar(); renderCommandCenter();
+  toast('🎯 Set as current focus.');
+}
+function chanIcon(c){return {whatsapp:'💬',text:'📱',call:'📞',email:'✉️',other:'📌'}[c]||'📌';}
+function chanLabel(c){return {whatsapp:'WhatsApp',text:'Text',call:'Call',email:'Email',other:'Other'}[c]||c;}
+
+function updateSignalBadges(){
+  const count = (DB.signals||[]).filter(s=>!s.handled).length;
+  const nb = document.getElementById('badge-signals');
+  if(nb){ nb.textContent = count; nb.style.display = count ? 'inline-block' : 'none'; }
+  const fb = document.getElementById('fab-signal-badge');
+  if(fb){ fb.textContent = count; fb.style.display = count ? 'flex' : 'none'; }
+}
+
+function renderCommandCenter(){
+  renderFocusBar();
+  // Focus card
+  const f = DB.focus || {};
+  const titleEl = document.getElementById('cc-focus-title');
+  const crumbEl = document.getElementById('cc-focus-breadcrumb');
+  const metaEl = document.getElementById('cc-focus-meta');
+  if(f.title){
+    titleEl.textContent = f.title;
+    crumbEl.textContent = f.breadcrumb || (f.link ? 'Linked to: '+f.link : '');
+    metaEl.textContent = f.updatedTs ? 'Last updated ' + timeAgo(f.updatedTs) : '';
+  } else {
+    titleEl.textContent = 'Nothing set';
+    crumbEl.textContent = 'Click "Set Focus" to point yourself at what you\'re working on right now — especially useful right before you get pulled away.';
+    metaEl.textContent = '';
+  }
+
+  // Priority queue: top unfinished tasks, high priority + overdue first, capped at 7
+  const today = todayStr();
+  const pq = (DB.tasks||[]).filter(t=>!t.done).sort((a,b)=>{
+    const pa={high:0,medium:1,low:2}[a.priority]||1, pb={high:0,medium:1,low:2}[b.priority]||1;
+    if(pa!==pb) return pa-pb;
+    return (a.dueDate||'9')>(b.dueDate||'9')?1:-1;
+  }).slice(0,7);
+  const pqEl = document.getElementById('cc-priority-queue');
+  pqEl.innerHTML = pq.length ? pq.map((t,i)=>{
+    const overdue = t.dueDate && t.dueDate<today;
+    return '<div class="pq-item">'+
+      '<div class="pq-rank">'+(i+1)+'</div>'+
+      '<div class="pq-body">'+
+        '<div class="pq-title">'+t.title+'</div>'+
+        '<div class="pq-meta'+(overdue?' pq-stale':'')+'">'+(overdue?'⚠️ Overdue — ':'')+'Due '+formatDate(t.dueDate)+(t.contact?' · '+t.contact:'')+' · '+t.priority+' priority</div>'+
+      '</div>'+
+      '<div class="pq-actions">'+
+        '<button class="btn btn-outline btn-sm btn-icon" title="Set as current focus" onclick="bumpTaskToFocus(\''+t.id+'\')">🎯</button>'+
+        '<button class="btn btn-outline btn-sm btn-icon" title="Mark done" onclick="toggleTask(\''+t.id+'\');renderCommandCenter();">✓</button>'+
+      '</div>'+
+    '</div>';
+  }).join('') : '<div class="cc-empty">🎉 No open tasks — nice and clear.</div>';
+
+  // Signal inbox: unhandled first, then handled
+  const signals = (DB.signals||[]).slice().sort((a,b)=>{
+    if(a.handled!==b.handled) return a.handled?1:-1;
+    if(a.urgent!==b.urgent) return a.urgent?-1:1;
+    return b.ts-a.ts;
+  });
+  const sigEl = document.getElementById('cc-signal-inbox');
+  sigEl.innerHTML = signals.length ? signals.map(s=>
+    '<div class="signal-item'+(s.urgent&&!s.handled?' urgent':'')+(s.handled?' handled':'')+'">'+
+      '<div class="signal-chan">'+chanIcon(s.channel)+'</div>'+
+      '<div class="signal-body">'+
+        '<div class="signal-from">'+(s.from||chanLabel(s.channel))+(s.urgent&&!s.handled?' <span class="urgent-flag">URGENT</span>':'')+'</div>'+
+        (s.note?'<div class="signal-note">'+s.note+'</div>':'')+
+        '<div class="signal-meta">'+chanLabel(s.channel)+' · '+timeAgo(s.ts)+(s.handled?' · handled':'')+'</div>'+
+      '</div>'+
+      '<div class="signal-actions">'+
+        (!s.handled?'<button class="btn btn-outline btn-sm btn-icon" title="Convert to task" onclick="convertSignalToTask(\''+s.id+'\')">✅</button>':'')+
+        '<button class="btn btn-outline btn-sm btn-icon" title="'+(s.handled?'Mark unhandled':'Mark handled')+'" onclick="toggleSignalHandled(\''+s.id+'\')">'+(s.handled?'↺':'👁')+'</button>'+
+        '<button class="btn btn-danger btn-sm btn-icon" title="Delete" onclick="deleteSignal(\''+s.id+'\')">🗑</button>'+
+      '</div>'+
+    '</div>'
+  ).join('') : '<div class="cc-empty">No messages logged yet. Use the ✚ Quick Log button (bottom-right, visible on every screen) whenever a WhatsApp, text, or call comes in.</div>';
 }
 
 // ─── CONTACTS ───
@@ -2335,6 +2620,8 @@ function updateAcctAlertBadge(){
 // ─── INIT ───
 load();
 loadAcct();
+seedWhatsAppUpgradeTask();
+renderCommandCenter();
 renderDashboard();
 renderAIHistory();
 updateBadges();
