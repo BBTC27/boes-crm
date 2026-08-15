@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-08-09",
+  "updatedAt": "2026-08-15",
   "rfps": [
     {
       "id": "DCR-003",
@@ -9,6 +9,15 @@
       "decision": "Pursue Category 2 narrow subset only (OSHA Construction Outreach, HAZWOPER, LOTO, Fall Protection, Hot Works, Chain Saw Safety, Reasonable Suspicion Training). No-bid Category 1 (aquatics/lifeguard — outside capability). No-bid asbestos/lead/mold/hoisting-license courses pending MA licensure confirmation. SBPP in-state preference noted as competitive headwind.",
       "deadline": "2026-09-18 3:00 PM ET (Bid Opening) — Q&A due 2026-08-14, Amendment deadline 2026-08-28",
       "notes": "Approved by Terry 2026-08-09. Drive folder created: '1. RFP Draft Documents to be approved/DCR-003 - MA DCR HSE Cert & Training'. All 6 procurement calendar milestones added to terry@boesandboes.com (Q&A due, answers published, amendment deadline, bid deadline, award notification est., contract start est.)."
+    },
+    {
+      "id": "WSP-LA-EOC-2026",
+      "name": "City of LA EOC Functional & Tabletop Exercises (2026-2027) — WSP USA Sub Quote",
+      "tag": "Green",
+      "stage": "Quote submitted to prime (WSP USA) — awaiting inclusion decision in WSP's proposal",
+      "decision": "Pursue as subcontractor on a narrow, defined scope rather than the full SOW: NAICS 541690 (document/protocol review, Phase 2; AAR/IP drafting and EEG development, Phase 5) and NAICS 541990 (professional photography for TTX/FE staffing requirement and 3 required video injects per cycle, delivered via B&B's own photography/video personnel). No-bid on 921110/921190/813990 — no clear capability match and no time to clarify scope with WSP given deadline.",
+      "deadline": "WSP sub-quote due 2026-08-16 (met — quote sent 2026-08-15). City bid due 2026-09-01 (WSP's submission, not B&B's).",
+      "notes": "Branded PDF quote (BB_WSP_LA_EOC_Quote.pdf) sent to Marc Barrera (marc.barrera@wsp.com) 2026-08-15. Two-year quote total $40,266.05 (2026: $19,690.00 / 2027: $20,576.05, incl. 4.5% Year 2 escalation and 10% OH/G&A/Profit markup), plus an open as-needed line for Senior Consultant remote document prep/planning support ($1,650/day 2026, $1,724.25/day 2027). WOSB certification offered to satisfy WSP's MBE/WBE/SBE/EBE/DVBE/DBE requirement — specific designation not confirmed by WSP. Next step: awaiting WSP confirmation of inclusion in their prime proposal."
     }
   ]
 }
