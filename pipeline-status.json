@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-08-15",
+  "updatedAt": "2026-08-24",
   "rfps": [
     {
       "id": "DCR-003",
@@ -36,6 +36,15 @@
       "decision": "Direct/repeat past client relationship, routed through broker/intermediary BII (role analogous to WSP on the LA opportunity — BII is not the end client). Two distinct NFPA-aligned courses requested: ARFF Driver/Operator and Hazmat Operations.",
       "deadline": "Target delivery: November 2026",
       "notes": "Received 2026-08-15. Awaiting scope/duration/headcount details from BII before pricing or scheduling can be finalized. No Drive folder or calendar entries created yet — pending scope confirmation and pursuit approval."
+    },
+    {
+      "id": "M0026426Q0140",
+      "name": "USMC HQMC HROM — MCNCR Civilian Leadership Training Seminars (Pentagon & MCB Quantico)",
+      "tag": "Green",
+      "stage": "Submitted",
+      "decision": "Pursue — B&B's first competitive federal RFQ response (prior competitive work has been state/local). PWS squarely within B&B's talent-development/leadership-training lane; Linda Boes as lead facilitator/instructional designer, with Terry providing federal/DoD delivery experience. 100% small business set-aside; B&B qualifies as small business, WOSB represented for completeness. Single FFP, all-or-none award; no option periods.",
+      "deadline": "2026-08-24 09:00 AM ET — submitted to Edgar Clark (Contract Specialist) and Kellie Holley (Contracting Officer) via email",
+      "notes": "Six-document package: Technical Volume (3 pages), Price Schedule, Appendix A (all 7 PWS §3.1–3.7 course outlines with sample agendas — added after RFQ instructions were found to require outlines for all seven courses, not just 3.4), Appendix B (sample training materials incl. a styled Instructional Guide page and a Commitment Card artifact), Representations & Certifications (all 16 required provisions per solicitation pp.36–38, signed), and the completed/signed SF1449. Total evaluated price $69,400.00 (14 CLINs). Course 3.4 assessment instrument resolved to Everything DiSC Workplace ($90/seat) after review found EQ-i 2.0 to be a construct mismatch against the PWS's 'personality assessment' requirement; EQ-i/EQ 360 retained in Linda's Key Personnel bio as practitioner credential. Kolb's Experiential Learning Cycle used as a single supporting-methodology mention, not a structural spine. Tiered-breakout design (plenary + role/grade-tiered practice) added to address mixed-grade cohorts per PWS background section. Linda's credential corrected to M.Ed. (Adult Education & Human Services), CPLP, CIPD, ILM, IAPPD across all documents — prior bios incorrectly listed an 'MS Industrial Psychology'; corrected in Claude's memory going forward. SF1449 required a second pass: 6 embedded solicitation-provision checkboxes (252.204-7016, 52.209-2 x2, 52.209-11 x2, 252.239-7009) were initially missed and caught on Terry's review before submission. First-federal-bid lessons for the Improvement Log: (1) SAM.gov is a registration/posting system, not a submission portal — check each solicitation's own Instructions to Quoters for submission mechanism; (2) confirm embedded PDF form checkboxes/representations are filled, not just the outer SF1449 blocks; (3) Word-generated docx files with embedded images should be spot-checked in actual MS Word, not just LibreOffice/PDF preview, before submission — a missing image-type declaration caused a 'repair' prompt that LibreOffice silently tolerated."
     }
   ]
 }
