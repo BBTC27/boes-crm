@@ -314,6 +314,7 @@
   <div class="nav-item" onclick="navigate('acct-overhead')"><span class="nav-icon">🏢</span> Overhead</div>
   <div class="nav-section-label">System</div>
   <div class="nav-item" onclick="navigate('production')"><span class="nav-icon">⚙️</span> Production</div>
+  <div class="nav-item" onclick="exportArchiveCSV()"><span class="nav-icon">📁</span> Export Annual Archive</div>
   <div class="nav-item" onclick="exportData()"><span class="nav-icon">💾</span> Export Data</div>
   <div class="nav-item" onclick="importData()"><span class="nav-icon">📥</span> Import Data</div>
   <div class="nav-item" onclick="syncToSheets(true)"><span class="nav-icon">☁️</span> Sync to Sheets</div>
@@ -1107,9 +1108,13 @@
 const STORAGE_KEY='boes_crm_v40';
 const V31_KEY='boes_crm_v31';
 const PIPELINE_STAGES=['Prospect','Qualified','Proposal','Negotiation','Closed Won','Closed Lost'];
-const PRODUCTION_STAGES=['Researching','Planning','Execution','Delivery','Closeout'];
+const PRODUCTION_STAGES=['New Contracts','Planning','Execution','Delivery','Completed/Invoiced','Paid/Closed'];
+const HOLD_STAGE='New Contracts'; // Production holding stage a Closed Won job lands in; moved here manually from there
+const RELEASE_STAGE='Delivery'; // stage at which the job is dropped from the Pipeline's Closed Won column
+const CLOSEOUT_STAGE='Paid/Closed';
+const ARCHIVE_DAYS=30; // days a job sits in Closed Lost / Paid & Closed before being archived
 
-function defaultData(){return{contacts:[],deals:[],tasks:[],activities:[],aiHistory:[],apiKey:'',version:'4.0',focus:{title:'',breadcrumb:'',link:'',updatedTs:null},signals:[],seeded:{}};}
+function defaultData(){return{contacts:[],deals:[],tasks:[],activities:[],aiHistory:[],apiKey:'',version:'4.0',focus:{title:'',breadcrumb:'',link:'',updatedTs:null},signals:[],seeded:{},archive:[]};}
 let DB=defaultData();
 
 function save(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(DB));document.getElementById('last-saved-label').textContent='Saved '+new Date().toLocaleTimeString();scheduleSync();}catch(e){toast('Save error: '+e.message,true);}}
@@ -1118,23 +1123,61 @@ function save(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(DB));documen
 function migrateV31(v31){
   const out=defaultData();
   const pipe={'Cancelled':'Closed Lost','Proposal/Negotiations':'Negotiation','Lead':'Prospect','Contract Signed/Marketing':'Closed Won'};
-  const prod={'Initial Invoice':'Researching','Confirmed':'Planning','Paid':'Closeout'};
+  const prod={'Initial Invoice':'New Contracts','Confirmed':'Planning','Paid':'Paid/Closed'};
   const splitName=f=>{const p=(f||'').trim().split(/\s+/);return p[0]?{fname:p[0],lname:p.slice(1).join(' ')}:{fname:'',lname:''};};
   const cMap={};
   const addC=s=>{if(!s.contact&&!s.email)return;const k=(s.email||(s.contact+'|'+s.org)).toLowerCase().trim();if(!k||k==='|'||cMap[k])return;const {fname,lname}=splitName(s.contact);cMap[k]={id:uid(),fname,lname,org:s.org||'',phone:s.phone||'',email:s.email||'',tags:[],notes:s.title?('Title: '+s.title):'',created:Date.now()};};
   (v31.deals||[]).forEach(d=>{addC(d);out.deals.push({id:uid(),title:d.project||d.title||'Untitled',org:d.org||'',contact:d.contact||'',value:parseFloat(d.value)||0,stage:pipe[d.stage]||'Prospect',startDate:d.startDate||'',closeDate:d.endDate||'',probability:50,notes:[d.stage?('Orig stage: '+d.stage):'',d.title?('Contact title: '+d.title):''].filter(Boolean).join(' · '),board:'pipeline',created:Date.now()});});
-  (v31.prodJobs||[]).forEach(p=>{addC(p);out.deals.push({id:uid(),title:p.project||p.title||'Untitled',org:p.org||'',contact:p.contact||'',value:parseFloat(p.value)||0,stage:prod[p.prodStage]||'Researching',startDate:p.startDate||'',closeDate:p.endDate||'',probability:50,notes:[p.prodStage?('Orig prod stage: '+p.prodStage):'',p.title?('Contact title: '+p.title):''].filter(Boolean).join(' · '),board:'production',created:Date.now()});});
+  (v31.prodJobs||[]).forEach(p=>{addC(p);out.deals.push({id:uid(),title:p.project||p.title||'Untitled',org:p.org||'',contact:p.contact||'',value:parseFloat(p.value)||0,stage:prod[p.prodStage]||'New Contracts',startDate:p.startDate||'',closeDate:p.endDate||'',probability:50,notes:[p.prodStage?('Orig prod stage: '+p.prodStage):'',p.title?('Contact title: '+p.title):''].filter(Boolean).join(' · '),board:'production',created:Date.now(),stageEnteredAt:Date.now()});});
   out.tasks=(v31.reminders||[]).map(r=>({id:uid(),title:r.title||'Untitled',dueDate:r.date||'',priority:'medium',contact:'',deal:r.org||'',notes:[r.type?('Type: '+r.type):'',r.notes||''].filter(Boolean).join(' · '),done:!!r.done,created:Date.now()}));
   out.contacts=Object.values(cMap);
   return out;
 }
 
+// Renames existing Production stage names to the new v4.2 stage set, and
+// backfills stageEnteredAt so the 30-day archive clock has a starting point.
+function migrateStagesAndTimestamps(){
+  const renameProd={'Researching':'New Contracts','Closeout':'Paid/Closed'};
+  (DB.deals||[]).forEach(d=>{
+    if(d.board==='production'&&renameProd[d.stage])d.stage=renameProd[d.stage];
+    if(!d.stageEnteredAt)d.stageEnteredAt=d.created||Date.now();
+  });
+  if(!DB.archive)DB.archive=[];
+}
+
 function load(){
   const raw=localStorage.getItem(STORAGE_KEY);
-  if(raw){try{DB={...defaultData(),...JSON.parse(raw)};return;}catch(e){}}
+  if(raw){try{DB={...defaultData(),...JSON.parse(raw)};migrateStagesAndTimestamps();runArchivalSweep(true);return;}catch(e){}}
   const old=localStorage.getItem(V31_KEY);
-  if(old){try{DB=migrateV31(JSON.parse(old));save();toast('✅ Migrated data from v3.1!');}catch(e){toast('Migration note: '+e.message,true);}}
+  if(old){try{DB=migrateV31(JSON.parse(old));migrateStagesAndTimestamps();save();toast('✅ Migrated data from v3.1!');}catch(e){toast('Migration note: '+e.message,true);}}
 }
+
+// ─── ARCHIVING (Closed Lost / Paid & Closed → annual records) ───
+// Runs on load and hourly while the app is open. Because this is a static
+// site with no server-side cron, a job only gets swept once someone has the
+// app open past its 30-day mark — it won't archive itself in the background
+// overnight. Archived jobs move out of DB.deals into DB.archive and are
+// included in the Sheets sync payload as a separate "Archive" collection so
+// they still land on the annual spreadsheet.
+function runArchivalSweep(silent){
+  const now=Date.now();const cutoff=ARCHIVE_DAYS*24*60*60*1000;
+  if(!DB.archive)DB.archive=[];
+  const keep=[];const archived=[];
+  (DB.deals||[]).forEach(d=>{
+    const eligible=(d.board==='pipeline'&&d.stage==='Closed Lost')||(d.board==='production'&&d.stage===CLOSEOUT_STAGE);
+    const entered=d.stageEnteredAt||d.created||now;
+    if(eligible&&(now-entered)>=cutoff){archived.push({...d,archivedAt:now,archiveYear:new Date(entered).getFullYear()});}
+    else{keep.push(d);}
+  });
+  if(archived.length){
+    DB.deals=keep;DB.archive=DB.archive.concat(archived);
+    save();
+    archived.forEach(a=>logActivity({type:'deal',title:'Archived to annual records: '+a.title,contact:a.contact,notes:'Was in '+a.stage+' ('+a.archiveYear+')'}));
+    if(!silent)toast('🗄 Archived '+archived.length+' project(s) to annual records.');
+    if(typeof renderPipeline==='function'){renderPipeline();renderProduction();renderDashboard();updateBadges();}
+  }
+}
+setInterval(()=>runArchivalSweep(true),60*60*1000);
 
 function uid(){return Date.now().toString(36)+Math.random().toString(36).substr(2,5);}
 
@@ -1182,7 +1225,7 @@ function fmtMoney(n){return'$'+(parseFloat(n)||0).toLocaleString('en-US',{minimu
 function actIcon(t){return{note:'📝',email:'📧',call:'📞',meeting:'🤝',task:'✅',deal:'🔀'}[t]||'📋';}
 function actClass(t){return{note:'act-note',email:'act-email',call:'act-call',meeting:'act-call',task:'act-task',deal:'act-deal'}[t]||'act-note';}
 function stageClass(s){return{'Prospect':'stage-prospect','Qualified':'stage-qualified','Proposal':'stage-proposal','Negotiation':'stage-negotiation','Closed Won':'stage-closed-won','Closed Lost':'stage-closed-lost'}[s]||'';}
-function getStageColor(stage){return{'Prospect':'#3b82f6','Qualified':'#8b5cf6','Proposal':'#f59e0b','Negotiation':'#ef4444','Closed Won':'#66CC33','Closed Lost':'#B0B0B0','Researching':'#3b82f6','Planning':'#8b5cf6','Execution':'#f59e0b','Delivery':'#14b8a6','Closeout':'#66CC33'}[stage]||'#1A3E6D';}
+function getStageColor(stage){return{'Prospect':'#3b82f6','Qualified':'#8b5cf6','Proposal':'#f59e0b','Negotiation':'#ef4444','Closed Won':'#66CC33','Closed Lost':'#B0B0B0','New Contracts':'#3b82f6','Planning':'#8b5cf6','Execution':'#f59e0b','Delivery':'#14b8a6','Completed/Invoiced':'#0ea5e9','Paid/Closed':'#66CC33'}[stage]||'#1A3E6D';}
 
 function toast(msg,error=false){const el=document.createElement('div');el.className='toast'+(error?' error':'');el.textContent=msg;document.getElementById('toast-container').appendChild(el);setTimeout(()=>el.remove(),3500);}
 
@@ -1444,8 +1487,11 @@ function saveDeal(){
   const id=document.getElementById('deal-edit-id').value;
   const d={id:id||uid(),title:document.getElementById('d-title').value.trim(),org:document.getElementById('d-org').value.trim(),contact:document.getElementById('d-contact').value.trim(),value:parseFloat(document.getElementById('d-value').value)||0,stage:document.getElementById('d-stage').value,startDate:document.getElementById('d-start').value,closeDate:document.getElementById('d-close').value,probability:parseInt(document.getElementById('d-prob').value)||50,notes:document.getElementById('d-notes').value.trim(),board:id?(DB.deals.find(x=>x.id===id)||{}).board||'pipeline':'pipeline',created:id?(DB.deals.find(x=>x.id===id)||{}).created||Date.now():Date.now()};
   if(!d.title){toast('Please enter a project title.',true);return;}
-  if(id){const idx=DB.deals.findIndex(x=>x.id===id);if(idx>=0)DB.deals[idx]=d;}
-  else{DB.deals.unshift(d);logActivity({type:'deal',title:'New project: '+d.title,contact:d.contact,notes:'Stage: '+d.stage+' · '+fmtMoney(d.value)});}
+  if(id){const idx=DB.deals.findIndex(x=>x.id===id);if(idx>=0){const prevStage=DB.deals[idx].stage;d.stageEnteredAt=(prevStage===d.stage)?(DB.deals[idx].stageEnteredAt||Date.now()):Date.now();d.wonHold=DB.deals[idx].wonHold||false;DB.deals[idx]=d;}}
+  else{d.stageEnteredAt=Date.now();DB.deals.unshift(d);logActivity({type:'deal',title:'New project: '+d.title,contact:d.contact,notes:'Stage: '+d.stage+' · '+fmtMoney(d.value)});}
+  // Same Closed Won → Production auto-promotion as dragging the card.
+  if(d.board==='pipeline'&&d.stage==='Closed Won'){d.stage=HOLD_STAGE;d.board='production';d.wonHold=true;d.stageEnteredAt=Date.now();toast('🎉 Won! Sent to Production → '+HOLD_STAGE);}
+  else if(d.board==='production'&&d.stage===RELEASE_STAGE&&d.wonHold){d.wonHold=false;}
   save();closeModal('modal-deal');renderPipeline();renderProduction();renderDashboard();updateBadges();toast('✅ Project saved.');
 }
 function editDeal(id){
@@ -1458,20 +1504,47 @@ function editDeal(id){
 }
 function deleteDeal(id){if(!confirm('Delete this project?'))return;DB.deals=DB.deals.filter(d=>d.id!==id);save();renderPipeline();renderProduction();renderDashboard();updateBadges();toast('Project deleted.');}
 
+// Cards for a given column. Pipeline's "Closed Won" column also shows jobs
+// that have already been promoted to Production (wonHold===true) as
+// read-only reference cards, so accounting can still see them there until
+// the job reaches Delivery.
+function dealsForColumn(boardKey,stage){
+  if(boardKey==='pipeline'&&stage==='Closed Won'){
+    return DB.deals.filter(d=>(d.board==='pipeline'&&d.stage==='Closed Won')||d.wonHold===true);
+  }
+  return DB.deals.filter(d=>d.board===boardKey&&d.stage===stage);
+}
+function archiveCountdownBadge(boardKey,stage,c){
+  if(!((boardKey==='pipeline'&&stage==='Closed Lost')||(boardKey==='production'&&stage===CLOSEOUT_STAGE)))return'';
+  const entered=c.stageEnteredAt||c.created||Date.now();
+  const daysLeft=Math.max(0,ARCHIVE_DAYS-Math.floor((Date.now()-entered)/86400000));
+  return '<div style="margin-top:4px;font-size:10px;color:var(--text-muted);">🗄 Archives in '+daysLeft+'d</div>';
+}
 function renderKanban(boardEl,stages,boardKey){
   if(!boardEl)return;
   boardEl.innerHTML=stages.map(stage=>{
-    const cards=DB.deals.filter(d=>d.board===boardKey&&d.stage===stage);
+    const cards=dealsForColumn(boardKey,stage);
     return '<div class="kanban-col" data-stage="'+stage+'" data-board="'+boardKey+'" ondragover="event.preventDefault()" ondrop="dropCard(event,\''+stage+'\',\''+boardKey+'\')">'+
       '<div class="kanban-col-header"><span class="kanban-col-title">'+stage+'</span><span class="col-count">'+cards.length+'</span></div>'+
       '<div class="kanban-cards">'+
-      cards.map(c=>'<div class="kanban-card" draggable="true" id="kcard-'+c.id+'" ondragstart="dragCard(event,\''+c.id+'\')" style="border-left-color:'+getStageColor(c.stage)+'">'+
+      cards.map(c=>{
+        const held=boardKey==='pipeline'&&stage==='Closed Won'&&c.wonHold===true&&c.board==='production';
+        if(held){
+          return '<div class="kanban-card" id="kcard-'+c.id+'" style="border-left-color:'+getStageColor(stage)+';opacity:.85;">'+
+            '<div class="kc-title">'+c.title+'</div><div class="kc-org">'+(c.org||'—')+'</div>'+
+            '<div class="kc-footer"><span class="kc-value">'+fmtMoney(c.value)+'</span><span style="font-size:10px;color:var(--text-muted);">📦 In Production: '+c.stage+'</span></div>'+
+            '<div style="margin-top:6px;"><button class="btn btn-outline btn-sm" style="font-size:10px;padding:3px 6px;width:100%;" onclick="navigate(\'production\')">View in Production</button></div>'+
+            '</div>';
+        }
+        return '<div class="kanban-card" draggable="true" id="kcard-'+c.id+'" ondragstart="dragCard(event,\''+c.id+'\')" style="border-left-color:'+getStageColor(c.stage)+'">'+
         '<div class="kc-title">'+c.title+'</div><div class="kc-org">'+(c.org||'—')+'</div>'+
         '<div class="kc-footer"><span class="kc-value">'+fmtMoney(c.value)+'</span><span class="kc-date">'+(c.closeDate?formatDate(c.closeDate):'—')+'</span></div>'+
+        archiveCountdownBadge(boardKey,stage,c)+
         '<div style="margin-top:6px;display:flex;gap:4px;"><select class="inline-select" style="flex:1;font-size:11px;" onchange="moveCard(\''+c.id+'\',this.value,\''+boardKey+'\')">'+stages.map(s=>'<option value="'+s+'"'+(s===c.stage?' selected':'')+'>'+s+'</option>').join('')+'</select>'+
         '<button class="btn btn-outline btn-sm btn-icon" onclick="editDeal(\''+c.id+'\')" style="font-size:10px;padding:3px 6px;">✏️</button>'+
         '<button class="btn btn-danger btn-sm btn-icon" onclick="deleteDeal(\''+c.id+'\')" style="font-size:10px;padding:3px 6px;">🗑</button></div>'+
-        '</div>').join('')+
+        '</div>';
+      }).join('')+
       '</div>'+
       '<div class="add-card-btn" onclick="openAddCard(\''+stage+'\',\''+boardKey+'\')">+ Add Project</div>'+
       '</div>';
@@ -1535,10 +1608,24 @@ function dragCard(e,id){dragId=id;e.dataTransfer.effectAllowed='move';}
 function dropCard(e,stage,board){if(!dragId)return;moveCard(dragId,stage,board);dragId=null;}
 function moveCard(id,stage,board){
   const idx=DB.deals.findIndex(d=>d.id===id);if(idx<0)return;
-  const title=DB.deals[idx].title;
-  DB.deals[idx].stage=stage;DB.deals[idx].board=board;
+  const d=DB.deals[idx];const title=d.title;
+
+  // Closed Won in the Pipeline auto-promotes to the Production holding stage.
+  // The job keeps showing in the Pipeline's Closed Won column (via wonHold)
+  // until it's manually moved to Delivery, at which point it's dropped from
+  // Closed Won for good.
+  if(board==='pipeline'&&stage==='Closed Won'){
+    d.stage=HOLD_STAGE;d.board='production';d.wonHold=true;d.stageEnteredAt=Date.now();
+    save();renderPipeline();renderProduction();renderDashboard();updateBadges();
+    logActivity({type:'deal',title:'Project won & sent to Production: '+title,contact:d.contact,notes:'Now in: '+HOLD_STAGE+' · stays visible in Closed Won until moved to Delivery'});
+    toast('🎉 Won! Sent to Production → '+HOLD_STAGE);
+    return;
+  }
+
+  d.stage=stage;d.board=board;d.stageEnteredAt=Date.now();
+  if(board==='production'&&stage===RELEASE_STAGE&&d.wonHold)d.wonHold=false;
   save();if(board==='pipeline')renderPipeline();else renderProduction();renderDashboard();updateBadges();
-  logActivity({type:'deal',title:'Project moved: '+title,contact:DB.deals[idx].contact,notes:'Now in: '+stage});
+  logActivity({type:'deal',title:'Project moved: '+title,contact:d.contact,notes:'Now in: '+stage});
   toast('Moved to '+stage);
 }
 function openAddCard(stage,board){
@@ -1549,7 +1636,7 @@ function openAddCard(stage,board){
 function saveKanbanCard(){
   const stage=document.getElementById('add-card-stage').value;const board=document.getElementById('add-card-board').value;
   const title=document.getElementById('ac-title').value.trim();if(!title){toast('Please enter a title.',true);return;}
-  const d={id:uid(),title,org:document.getElementById('ac-org').value.trim(),contact:'',value:parseFloat(document.getElementById('ac-value').value)||0,stage,board,startDate:document.getElementById('ac-start').value,closeDate:document.getElementById('ac-close').value,probability:50,notes:'',created:Date.now()};
+  const d={id:uid(),title,org:document.getElementById('ac-org').value.trim(),contact:'',value:parseFloat(document.getElementById('ac-value').value)||0,stage,board,startDate:document.getElementById('ac-start').value,closeDate:document.getElementById('ac-close').value,probability:50,notes:'',created:Date.now(),stageEnteredAt:Date.now()};
   DB.deals.push(d);logActivity({type:'deal',title:'New project added: '+title,notes:'Stage: '+stage});
   save();closeModal('modal-add-card');if(board==='pipeline')renderPipeline();else renderProduction();renderDashboard();updateBadges();toast('Project added.');
 }
@@ -1594,8 +1681,8 @@ function renderDashboard(){
   const pipelineValue=openDeals.reduce((s,d)=>s+d.value,0);
   const overdueTasks=DB.tasks.filter(t=>!t.done&&t.dueDate&&t.dueDate<today).length;
   const todayTasks=DB.tasks.filter(t=>!t.done&&t.dueDate===today).length;
-  const wonValue=DB.deals.filter(d=>d.stage==='Closed Won').reduce((s,d)=>s+d.value,0);
-  const wonCount=DB.deals.filter(d=>d.stage==='Closed Won').length;
+  const wonValue=DB.deals.filter(d=>d.stage==='Closed Won'||d.wonHold===true).reduce((s,d)=>s+d.value,0);
+  const wonCount=DB.deals.filter(d=>d.stage==='Closed Won'||d.wonHold===true).length;
   document.getElementById('kpi-grid').innerHTML=
     '<div class="kpi-card"><div class="kpi-label">Contacts</div><div class="kpi-value">'+DB.contacts.length+'</div><div class="kpi-sub">Total in database</div></div>'+
     '<div class="kpi-card green"><div class="kpi-label">Pipeline Value</div><div class="kpi-value" style="color:var(--green-dark);font-size:24px;">'+fmtMoney(pipelineValue)+'</div><div class="kpi-sub">'+openDeals.length+' open projects</div></div>'+
@@ -1646,6 +1733,22 @@ function logEmailToActivity(){const to=document.getElementById('gmail-to').value
 // ─── EXPORT/IMPORT ───
 function exportData(){const blob=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='BoesCommandCenter-backup-'+todayStr()+'.json';a.click();toast('💾 Data exported.');}
 
+// Downloads every archived (Closed Lost / Paid & Closed, 30+ days old) job
+// as a CSV, one row per job, grouped by the year it was archived — the
+// "annual spreadsheet" record. Also sent to Google Sheets as its own
+// Archive tab whenever Sheets sync runs, if sync is configured.
+function exportArchiveCSV(){
+  runArchivalSweep(true);
+  const rows=(DB.archive||[]).slice().sort((a,b)=>(a.archiveYear||0)-(b.archiveYear||0)||(a.title||'').localeCompare(b.title||''));
+  if(!rows.length){toast('No archived projects yet.',true);return;}
+  const header=['Year','Title','Organization','Contact','Value','Final Stage','Board','Start Date','Close Date','Archived On','Notes'];
+  const esc=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+  const lines=[header.map(esc).join(',')].concat(rows.map(d=>[d.archiveYear||'',d.title||'',d.org||'',d.contact||'',d.value||0,d.stage||'',d.board||'',d.startDate||'',d.closeDate||'',d.archivedAt?new Date(d.archivedAt).toLocaleDateString():'',d.notes||''].map(esc).join(',')));
+  const blob=new Blob([lines.join('\n')],{type:'text/csv'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='BoesArchive-AllYears-'+todayStr()+'.csv';a.click();
+  toast('📁 Archive exported ('+rows.length+' project'+(rows.length!==1?'s':'')+').');
+}
+
 // ══════════ GOOGLE SHEETS SYNC (v4.1) ══════════
 // Pushes a read-only mirror of CRM + Accounting data to a Google Sheet via
 // an Apps Script web app. Auto-syncs (debounced) after every save.
@@ -1676,9 +1779,11 @@ function openSyncSettings(){
 function isoOrBlank(ms){return ms?new Date(ms).toISOString():'';}
 function buildSyncPayload(){
   const dealRow=d=>({id:d.id,title:d.title||'',org:d.org||'',contact:d.contact||'',value:d.value||0,stage:d.stage||'',probability:d.probability||0,weightedValue:Math.round((d.value||0)*(d.probability||0))/100,startDate:d.startDate||'',closeDate:d.closeDate||'',notes:d.notes||'',created:isoOrBlank(d.created)});
+  const archiveRow=d=>({id:d.id,title:d.title||'',org:d.org||'',contact:d.contact||'',value:d.value||0,finalStage:d.stage||'',board:d.board||'',year:d.archiveYear||'',archivedOn:isoOrBlank(d.archivedAt),startDate:d.startDate||'',closeDate:d.closeDate||'',notes:d.notes||'',created:isoOrBlank(d.created)});
   return{token:SYNC.token,source:'Boes & Boes Command Center',version:DB.version||'4.0',collections:{
     Pipeline:DB.deals.filter(d=>d.board==='pipeline').map(dealRow),
     Production:DB.deals.filter(d=>d.board==='production').map(dealRow),
+    Archive:(DB.archive||[]).map(archiveRow),
     Tasks:(DB.tasks||[]).map(t=>({...t,created:isoOrBlank(t.created)})),
     Contacts:DB.contacts||[],
     Students:DB.students||[],
