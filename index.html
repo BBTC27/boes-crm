@@ -333,6 +333,8 @@
   <div class="nav-item" onclick="navigate('ai')"><span class="nav-icon">🤖</span> AI Assistant</div>
   <div class="nav-item" onclick="navigate('gmail')"><span class="nav-icon">✉️</span> Gmail</div>
   <div class="nav-section-label">Finance</div>
+  <div class="nav-item" onclick="navigate('acct-dashboard')"><span class="nav-icon">🏦</span> Company Dashboard</div>
+  <div class="nav-item" onclick="navigate('acct-clients')"><span class="nav-icon">🤝</span> Client Accounts</div>
   <div class="nav-item" onclick="navigate('acct-forecast')"><span class="nav-icon">📈</span> Forecast <span class="nav-badge" id="badge-acct-alerts" style="display:none">!</span></div>
   <div class="nav-item" onclick="navigate('acct-jobs')"><span class="nav-icon">💼</span> Jobs / Revenue</div>
   <div class="nav-item" onclick="navigate('acct-expenses')"><span class="nav-icon">🧾</span> Expenses</div>
@@ -607,6 +609,54 @@
         <div class="card-header"><h3>🏢 Overhead Due — Next 90 Days</h3></div>
         <div class="card-body" style="padding:0;"><table class="data-table"><thead><tr><th>Item</th><th>Category</th><th>Frequency</th><th>Next Due</th><th>Amount</th></tr></thead><tbody id="forecast-overhead-tbody"></tbody></table></div>
       </div>
+    </div>
+
+    <!-- COMPANY DASHBOARD -->
+    <div id="view-acct-dashboard" class="view">
+      <div class="section-title">🏦 Company Dashboard</div>
+      <div class="toolbar">
+        <select class="inline-select" id="cd-period" onchange="renderCompanyDashboard()">
+          <option value="month">This month</option><option value="quarter">This quarter</option><option value="ytd" selected>Year to date</option><option value="lastyear">Last year</option><option value="all">All time</option>
+        </select>
+        <span id="cd-period-label" style="color:var(--text-muted);font-size:14px;"></span>
+      </div>
+      <div class="kpi-grid" id="cd-kpis"></div>
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-header"><h3>📅 Month by Month</h3><select class="inline-select" id="cd-year" onchange="renderCompanyDashboard()"></select></div>
+        <div class="card-body" style="padding:0;overflow-x:auto;"><table class="data-table" id="cd-monthly"></table></div>
+      </div>
+      <div class="dash-grid" style="margin-bottom:20px;">
+        <div class="card">
+          <div class="card-header"><h3>⏳ Owed to Boes &amp; Boes</h3><span style="font-size:14px;color:var(--text-muted);">by how overdue</span></div>
+          <div class="card-body" id="cd-aging"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>💵 Cash Forecast</h3><span style="font-size:14px;color:var(--text-muted);">expected in vs. overhead out</span></div>
+          <div class="card-body" id="cd-cash"></div>
+        </div>
+      </div>
+      <div class="dash-grid">
+        <div class="card">
+          <div class="card-header"><h3>🤝 Top Clients</h3><span style="font-size:14px;color:var(--text-muted);">received this period</span></div>
+          <div class="card-body" id="cd-clients"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>🧭 Service Lines</h3><span style="font-size:14px;color:var(--text-muted);">received and margin this period</span></div>
+          <div class="card-body" style="padding:0;overflow-x:auto;"><table class="data-table" id="cd-lines"></table></div>
+        </div>
+      </div>
+      <div style="font-size:13px;color:var(--text-muted);margin-top:14px;" id="cd-footnote"></div>
+    </div>
+
+    <!-- CLIENT ACCOUNTS -->
+    <div id="view-acct-clients" class="view">
+      <div class="section-title">🤝 Client Accounts</div>
+      <div class="kpi-grid" id="ca-kpis"></div>
+      <div class="toolbar">
+        <input class="form-control" id="ca-search" placeholder="Search clients…" oninput="renderClientAccounts()" style="max-width:320px;">
+        <select class="inline-select" id="ca-filter" onchange="renderClientAccounts()"><option value="">All clients</option><option value="owing">Owes money</option><option value="overdue">Overdue</option></select>
+      </div>
+      <div class="card"><div class="card-body" style="padding:0;overflow-x:auto;"><table class="data-table" id="ca-table"></table></div></div>
     </div>
 
     <!-- JOBS / REVENUE -->
@@ -977,6 +1027,16 @@
 </div>
 
 <!-- MODAL: JOB DETAIL -->
+<div class="modal-overlay" id="modal-client-account">
+  <div class="modal" style="max-width:900px;">
+    <div class="modal-header">
+      <h3 id="client-account-title">Client</h3>
+      <button class="modal-close" onclick="closeModal('modal-client-account')">✕</button>
+    </div>
+    <div class="modal-body" id="client-account-body"></div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-client-account')">Close</button></div>
+  </div>
+</div>
 <div class="modal-overlay" id="modal-job-detail">
   <div class="modal" style="max-width:780px;">
     <div class="modal-header">
@@ -1636,7 +1696,7 @@ function navigate(view){
   const el=document.getElementById('view-'+view);
   if(el){el.classList.add('active');currentView=view;}
   document.querySelectorAll('.nav-item').forEach(n=>{if(n.getAttribute('onclick')&&n.getAttribute('onclick').includes("'"+view+"'"))n.classList.add('active');});
-  const titles={'command-center':'Command Center',dashboard:'Dashboard',pipeline:'Pipeline',contacts:'Contacts',students:'Students',tasks:'Tasks',activity:'Activity Log',ai:'AI Assistant',gmail:'Gmail',production:'Production','acct-forecast':'90-Day Forecast','acct-jobs':'Jobs & Revenue','acct-expenses':'Project Expenses','acct-overhead':'Overhead & Indirect'};
+  const titles={'command-center':'Command Center',dashboard:'Dashboard',pipeline:'Pipeline',contacts:'Contacts',students:'Students',tasks:'Tasks',activity:'Activity Log',ai:'AI Assistant',gmail:'Gmail',production:'Production','acct-forecast':'90-Day Forecast','acct-jobs':'Jobs & Revenue','acct-expenses':'Project Expenses','acct-overhead':'Overhead & Indirect','acct-dashboard':'Company Dashboard','acct-clients':'Client Accounts'};
   document.getElementById('topbar-title').textContent=titles[view]||view;
   if(view==='command-center')renderCommandCenter();
   if(view==='dashboard')renderDashboard();
@@ -1650,6 +1710,8 @@ function navigate(view){
   if(view==='acct-jobs')renderJobsView();
   if(view==='acct-expenses')renderExpensesView();
   if(view==='acct-overhead')renderOverheadView();
+  if(view==='acct-dashboard')renderCompanyDashboard();
+  if(view==='acct-clients')renderClientAccounts();
   if(view==='ai'){renderAIHistory();if(DB.apiKey)document.getElementById('api-key-status').textContent='API key saved ✓';}
 }
 
@@ -3222,6 +3284,176 @@ function updateAcctAlertBadge(){
   const total=overdue+ohOverdue;
   const badge=document.getElementById('badge-acct-alerts');
   if(badge){badge.textContent=total;badge.style.display=total?'inline-block':'none';}
+}
+
+// ═══════════════════════════════════════════════
+// ─── COMPANY DASHBOARD & CLIENT ACCOUNTS ───
+// Built from the accounting data (jobs, payment schedules, expenses,
+// overhead). Income counts when a scheduled payment is marked Received,
+// on its received date. Overhead uses the recurring overhead list:
+// monthly equivalents for each month, one-time items on their due date.
+// ═══════════════════════════════════════════════
+function rEsc(s){return String(s===undefined||s===null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function rNum(n){n=parseFloat(n);return isFinite(n)?n:0;}
+function rMoney(n){const v=Math.round(rNum(n));return (v<0?'−$':'$')+Math.abs(v).toLocaleString('en-US');}
+function rPct(a,b){return b?Math.round(a/b*100)+'%':'—';}
+const R_MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function rYM(d){return d?d.slice(0,7):'';}
+function rMonthsBetween(fromYM,toYM){const out=[];let [y,m]=fromYM.split('-').map(Number);const [ty,tm]=toYM.split('-').map(Number);while(y<ty||(y===ty&&m<=tm)){out.push(y+'-'+String(m).padStart(2,'0'));m++;if(m>12){m=1;y++;}if(out.length>600)break;}return out;}
+function rClientKey(org){return CV.norm(org)||'(no client)';}
+function rDaysLate(date,today){return Math.floor((new Date(today+'T00:00:00Z')-new Date(date+'T00:00:00Z'))/864e5);}
+
+function rPeriod(key){
+  const t=todayStr();const y=+t.slice(0,4),m=+t.slice(5,7);
+  if(key==='month'){const f=t.slice(0,7)+'-01';return{from:f,to:t,label:R_MONTHS[m-1]+' '+y};}
+  if(key==='quarter'){const q=Math.floor((m-1)/3);const f=y+'-'+String(q*3+1).padStart(2,'0')+'-01';return{from:f,to:t,label:'Q'+(q+1)+' '+y};}
+  if(key==='lastyear')return{from:(y-1)+'-01-01',to:(y-1)+'-12-31',label:String(y-1)};
+  if(key==='all'){const first=rEarliest()||t;return{from:first,to:t,label:'All time'};}
+  return{from:y+'-01-01',to:t,label:'Jan 1 – today, '+y};
+}
+function rEarliest(){
+  const ds=[];(ACCT.jobs||[]).forEach(j=>{(j.payments||[]).forEach(p=>{if(p.status==='Received'&&p.date)ds.push(p.date);});if(j.start)ds.push(j.start);});
+  (ACCT.expenses||[]).forEach(e=>{if(e.date)ds.push(e.date);});
+  return ds.filter(Boolean).sort()[0]||'';
+}
+// All money movements as flat lists
+function rLedger(){
+  const jobsById={};(ACCT.jobs||[]).forEach(j=>jobsById[j.id]=j);
+  const income=[];(ACCT.jobs||[]).forEach(j=>(j.payments||[]).forEach(p=>{if(p.status==='Received'&&p.date)income.push({date:p.date,amount:rNum(p.amount),job:j});}));
+  const jobCosts=[],otherCosts=[];
+  (ACCT.expenses||[]).forEach(e=>{if(!e.date)return;const job=e.jobId&&jobsById[e.jobId];(job?jobCosts:otherCosts).push({date:e.date,amount:rNum(e.amount),job:job||null,exp:e});});
+  return{income,jobCosts,otherCosts,jobsById};
+}
+function rOverheadFor(fromDate,toDate){
+  const months=rMonthsBetween(rYM(fromDate),rYM(toDate));let total=0;
+  (ACCT.overhead||[]).forEach(o=>{
+    if(o.status==='paused')return;
+    if(o.frequency==='one-time'||!['monthly','quarterly','annual'].includes(o.frequency)){if(o.due&&o.due>=fromDate&&o.due<=toDate)total+=rNum(o.amount);return;}
+    total+=getMonthlyEquiv({...o,amount:rNum(o.amount)})*months.length;
+  });
+  return total;
+}
+function rSum(list,from,to){return list.filter(x=>x.date>=from&&x.date<=to).reduce((s,x)=>s+x.amount,0);}
+function rOpenItems(){
+  // everything clients still owe, with how late it is
+  const t=todayStr();const items=[];
+  (ACCT.jobs||[]).forEach(j=>{
+    const pays=j.payments||[];
+    pays.forEach(p=>{if(p.status!=='Received'&&rNum(p.amount)>0)items.push({job:j,amount:rNum(p.amount),date:p.date||'',late:p.date?rDaysLate(p.date,t):null,label:p.type||'Payment'});});
+    const scheduled=pays.reduce((s,p)=>s+rNum(p.amount),0);
+    const wo=(j.writeOffs||[]).reduce((s,w)=>s+rNum(w.amount),0);
+    const unscheduled=rNum(j.value)-scheduled-wo;
+    if(unscheduled>0.5)items.push({job:j,amount:unscheduled,date:'',late:null,label:'Not yet scheduled'});
+  });
+  return items;
+}
+function rAging(items){
+  const b=[{k:'Not due yet',v:0},{k:'1–30 days late',v:0},{k:'31–60 days late',v:0},{k:'61–90 days late',v:0},{k:'90+ days late',v:0},{k:'No date / not scheduled',v:0}];
+  items.forEach(i=>{const l=i.late;if(l===null)b[5].v+=i.amount;else if(l<=0)b[0].v+=i.amount;else if(l<=30)b[1].v+=i.amount;else if(l<=60)b[2].v+=i.amount;else if(l<=90)b[3].v+=i.amount;else b[4].v+=i.amount;});
+  return b;
+}
+function rBar(v,max,color){const w=max>0?Math.max(2,Math.round(v/max*100)):0;return '<div style="background:var(--border);border-radius:4px;height:8px;margin-top:4px;"><div style="width:'+w+'%;height:8px;border-radius:4px;background:'+(color||'var(--navy)')+';"></div></div>';}
+
+function renderCompanyDashboard(){
+  if(!document.getElementById('cd-kpis'))return;
+  const key=(document.getElementById('cd-period')||{value:'ytd'}).value||'ytd';
+  const P=rPeriod(key);const L=rLedger();
+  document.getElementById('cd-period-label').textContent=P.label;
+  const inc=rSum(L.income,P.from,P.to),jc=rSum(L.jobCosts,P.from,P.to),oc=rSum(L.otherCosts,P.from,P.to),oh=rOverheadFor(P.from,P.to);
+  const net=inc-jc-oc-oh;
+  const open=rOpenItems();const owed=open.reduce((s,i)=>s+i.amount,0);const overdue=open.filter(i=>i.late!==null&&i.late>0).reduce((s,i)=>s+i.amount,0);
+  const k=(label,val,cls,sub)=>'<div class="kpi-card'+(cls?' '+cls:'')+'"><div class="kpi-label">'+label+'</div><div class="kpi-value">'+val+'</div>'+(sub?'<div style="font-size:13px;color:var(--text-muted);">'+sub+'</div>':'')+'</div>';
+  document.getElementById('cd-kpis').innerHTML=
+    k('Income received',rMoney(inc),'green')+
+    k('Job costs',rMoney(jc),'','expenses linked to jobs')+
+    k('Other expenses',rMoney(oc),'','not linked to a job')+
+    k('Overhead (est.)',rMoney(oh),'','from your overhead list')+
+    k('Net profit','<span style="color:'+(net>=0?'var(--green-dark)':'var(--danger)')+'">'+rMoney(net)+'</span>',net>=0?'green':'danger',inc?'margin '+rPct(net,inc):'')+
+    k('Owed to you',rMoney(owed),'warning',overdue?'<span style="color:var(--danger)">'+rMoney(overdue)+' overdue</span>':'nothing overdue');
+  // month by month
+  const ySel=document.getElementById('cd-year');const thisY=+todayStr().slice(0,4);
+  const firstY=+((rEarliest()||todayStr()).slice(0,4));const cur=ySel.value?+ySel.value:thisY;
+  let opts='';for(let y=thisY;y>=Math.min(firstY,thisY);y--)opts+='<option value="'+y+'"'+(y===cur?' selected':'')+'>'+y+'</option>';ySel.innerHTML=opts;
+  let rows='<thead><tr><th>Month</th><th>Income</th><th>Job costs</th><th>Other exp.</th><th>Overhead (est.)</th><th>Net</th></tr></thead><tbody>';
+  const tot=[0,0,0,0,0];const nowYM=todayStr().slice(0,7);
+  for(let m=1;m<=12;m++){
+    const ym=cur+'-'+String(m).padStart(2,'0');if(ym>nowYM)break;
+    const f=ym+'-01',t=ym+'-31';const a=rSum(L.income,f,t),b=rSum(L.jobCosts,f,t),c=rSum(L.otherCosts,f,t),d=rOverheadFor(f,t),n=a-b-c-d;
+    [a,b,c,d,n].forEach((v,i)=>tot[i]+=v);
+    rows+='<tr><td>'+R_MONTHS[m-1]+'</td><td>'+rMoney(a)+'</td><td>'+rMoney(b)+'</td><td>'+rMoney(c)+'</td><td>'+rMoney(d)+'</td><td style="font-weight:600;color:'+(n>=0?'var(--green-dark)':'var(--danger)')+'">'+rMoney(n)+'</td></tr>';
+  }
+  rows+='<tr style="font-weight:700;border-top:2px solid var(--border);"><td>Total</td>'+tot.map((v,i)=>'<td'+(i===4?' style="color:'+(v>=0?'var(--green-dark)':'var(--danger)')+'"':'')+'>'+rMoney(v)+'</td>').join('')+'</tr></tbody>';
+  document.getElementById('cd-monthly').innerHTML=rows;
+  // aging
+  const ag=rAging(open);const agMax=Math.max(...ag.map(x=>x.v),1);
+  document.getElementById('cd-aging').innerHTML=owed?ag.filter(x=>x.v>0).map((x,i)=>'<div style="margin-bottom:12px;"><div style="display:flex;justify-content:space-between;"><span>'+x.k+'</span><strong>'+rMoney(x.v)+'</strong></div>'+rBar(x.v,agMax,/late/.test(x.k)?'var(--danger)':'var(--navy)')+'</div>').join('')+
+    '<div style="font-size:13px;color:var(--text-muted);">Largest late items: '+(open.filter(i=>i.late>0).sort((a,b)=>b.amount-a.amount).slice(0,3).map(i=>rEsc(i.job.org)+' '+rMoney(i.amount)+' ('+i.late+'d)').join(' · ')||'none')+'</div>'
+    :'<div style="color:var(--text-muted);">Nothing owed right now.</div>';
+  // cash forecast
+  const t0=todayStr();let html='';
+  const overdueAmt=open.filter(i=>i.late!==null&&i.late>0).reduce((s,i)=>s+i.amount,0);
+  [30,60,90].forEach(d=>{const end=addDays(t0,d);const inn=open.filter(i=>i.date&&i.date>=t0&&i.date<=end).reduce((s,i)=>s+i.amount,0);
+    const out=rOverheadFor(addDays(t0,1),end);const n=inn-out;
+    html+='<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span>Next '+d+' days</span><span>'+rMoney(inn)+' in · '+rMoney(out)+' out · <strong style="color:'+(n>=0?'var(--green-dark)':'var(--danger)')+'">'+rMoney(n)+'</strong></span></div>';});
+  html+='<div style="font-size:13px;color:var(--text-muted);margin-top:8px;">Plus '+rMoney(overdueAmt)+' already overdue that could come in any time.</div>';
+  document.getElementById('cd-cash').innerHTML=html;
+  // top clients
+  const names=rClients();const byC={};L.income.filter(x=>x.date>=P.from&&x.date<=P.to).forEach(x=>{const kk=rClientKey(x.job.org);(byC[kk]=byC[kk]||{key:kk,name:(names[kk]||{}).name||x.job.org||'(no client)',v:0}).v+=x.amount;});
+  const top=Object.values(byC).sort((a,b)=>b.v-a.v).slice(0,6);const topMax=top.length?top[0].v:1;
+  document.getElementById('cd-clients').innerHTML=top.length?top.map(c=>'<div style="margin-bottom:12px;cursor:pointer;" onclick="openClientAccount(\''+rEsc(c.key).replace(/\\/g,'\\\\')+'\')"><div style="display:flex;justify-content:space-between;"><span>'+rEsc(c.name)+'</span><strong>'+rMoney(c.v)+'</strong></div>'+rBar(c.v,topMax,'var(--green-dark)')+'</div>').join(''):'<div style="color:var(--text-muted);">No income received in this period.</div>';
+  // service lines
+  const lines={};
+  L.income.filter(x=>x.date>=P.from&&x.date<=P.to).forEach(x=>{const n=(x.job.category||'Other')+(x.job.subcat?' — '+x.job.subcat:'');(lines[n]=lines[n]||{inc:0,cost:0}).inc+=x.amount;});
+  L.jobCosts.filter(x=>x.date>=P.from&&x.date<=P.to).forEach(x=>{const n=(x.job.category||'Other')+(x.job.subcat?' — '+x.job.subcat:'');(lines[n]=lines[n]||{inc:0,cost:0}).cost+=x.amount;});
+  const lr=Object.entries(lines).sort((a,b)=>b[1].inc-a[1].inc);
+  document.getElementById('cd-lines').innerHTML='<thead><tr><th>Service line</th><th>Received</th><th>Job costs</th><th>Margin</th></tr></thead><tbody>'+
+    (lr.length?lr.map(([n,v])=>'<tr><td>'+rEsc(n)+'</td><td>'+rMoney(v.inc)+'</td><td>'+rMoney(v.cost)+'</td><td>'+rPct(v.inc-v.cost,v.inc)+'</td></tr>').join(''):'<tr><td colspan="4" style="color:var(--text-muted);">No activity in this period.</td></tr>')+'</tbody>';
+  document.getElementById('cd-footnote').textContent='Income counts when a payment is marked Received. Overhead is estimated from your overhead list. Figures cover what has been entered in the app'+(rEarliest()?' (from '+rEarliest()+').':'.');
+}
+
+function rClients(){
+  const t=todayStr();const map={};const L=rLedger();
+  (ACCT.jobs||[]).forEach(j=>{
+    const k=rClientKey(j.org);const c=map[k]=map[k]||{key:k,names:{},jobs:[],contracted:0,received:0,outstanding:0,overdue:0,costs:0,lastPaid:''};
+    c.names[j.org||'(no client)']=(c.names[j.org||'(no client)']||0)+1;c.jobs.push(j);
+    c.contracted+=rNum(j.value);c.received+=getJobReceived(j);c.outstanding+=getJobBalance(j);
+    (j.payments||[]).forEach(p=>{if(p.status==='Received'&&p.date&&p.date>c.lastPaid)c.lastPaid=p.date;if(p.status!=='Received'&&p.date&&p.date<t)c.overdue+=rNum(p.amount);});
+  });
+  L.jobCosts.forEach(x=>{const k=rClientKey(x.job.org);if(map[k])map[k].costs+=x.amount;});
+  Object.values(map).forEach(c=>{const score=([n,cnt])=>cnt*10+(/[A-Z]/.test(n)?2:0)+(n===n.trim()?1:0);c.name=Object.entries(c.names).sort((a,b)=>score(b)-score(a))[0][0].trim();});
+  return map;
+}
+function renderClientAccounts(){
+  if(!document.getElementById('ca-table'))return;
+  const map=rClients();let list=Object.values(map);
+  const q=CV.norm((document.getElementById('ca-search')||{value:''}).value);const f=(document.getElementById('ca-filter')||{value:''}).value;
+  if(q)list=list.filter(c=>c.key.includes(q));
+  if(f==='owing')list=list.filter(c=>c.outstanding>0.5);if(f==='overdue')list=list.filter(c=>c.overdue>0.5);
+  list.sort((a,b)=>b.contracted-a.contracted);
+  const all=Object.values(map);const sum=fn=>all.reduce((s,c)=>s+fn(c),0);
+  const k=(l,v,cls)=>'<div class="kpi-card'+(cls?' '+cls:'')+'"><div class="kpi-label">'+l+'</div><div class="kpi-value">'+v+'</div></div>';
+  document.getElementById('ca-kpis').innerHTML=k('Clients',all.length)+k('Contracted',rMoney(sum(c=>c.contracted)),'green')+k('Received',rMoney(sum(c=>c.received)),'green')+k('Outstanding',rMoney(sum(c=>c.outstanding)),'warning')+k('Overdue',rMoney(sum(c=>c.overdue)),sum(c=>c.overdue)>0?'danger':'');
+  document.getElementById('ca-table').innerHTML='<thead><tr><th>Client</th><th>Jobs</th><th>Contracted</th><th>Received</th><th>Outstanding</th><th>Job costs</th><th>Margin</th><th>Last payment</th></tr></thead><tbody>'+
+    (list.length?list.map(c=>'<tr style="cursor:pointer;" onclick="openClientAccount(\''+rEsc(c.key).replace(/\\/g,'\\\\')+'\')"><td style="font-weight:600;color:var(--navy);">'+rEsc(c.name)+'</td><td>'+c.jobs.length+'</td><td>'+rMoney(c.contracted)+'</td><td>'+rMoney(c.received)+'</td><td>'+(c.outstanding>0.5?'<span style="color:'+(c.overdue>0.5?'var(--danger)':'var(--warning)')+';font-weight:600;">'+rMoney(c.outstanding)+'</span>':'—')+'</td><td>'+rMoney(c.costs)+'</td><td>'+rPct(c.received-c.costs,c.received)+'</td><td>'+(c.lastPaid?formatDate(c.lastPaid):'—')+'</td></tr>').join('')
+    :'<tr><td colspan="8" style="color:var(--text-muted);padding:18px;">'+(all.length?'No clients match.':'No jobs yet. Clients appear here once you add jobs under Jobs / Revenue.')+'</td></tr>')+'</tbody>';
+}
+function openClientAccount(key){
+  const c=rClients()[key];if(!c)return;const t=todayStr();
+  const k=(l,v,cls)=>'<div class="kpi-card'+(cls?' '+cls:'')+'"><div class="kpi-label">'+l+'</div><div class="kpi-value">'+v+'</div></div>';
+  let h='<div class="kpi-grid" style="margin-bottom:16px;">'+k('Contracted',rMoney(c.contracted),'green')+k('Received',rMoney(c.received),'green')+k('Outstanding',rMoney(c.outstanding),c.overdue>0.5?'danger':'warning')+k('Job costs',rMoney(c.costs))+k('Margin',rPct(c.received-c.costs,c.received))+'</div>';
+  h+='<div style="font-weight:700;font-size:15px;margin-bottom:8px;color:var(--navy);">Jobs</div><div style="overflow-x:auto;"><table class="data-table" style="margin-bottom:18px;"><thead><tr><th>Project</th><th>Dates</th><th>Contract</th><th>Received</th><th>Balance</th><th>Costs</th><th>Status</th></tr></thead><tbody>'+
+    c.jobs.slice().sort((a,b)=>(b.start||'').localeCompare(a.start||'')).map(j=>'<tr style="cursor:pointer;" onclick="closeModal(\'modal-client-account\');openJobDetail(\''+rEsc(j.id)+'\')"><td>'+rEsc(j.project||'(no project)')+'</td><td>'+(j.start?formatDate(j.start):'—')+(j.end?' – '+formatDate(j.end):'')+'</td><td>'+rMoney(j.value)+'</td><td>'+rMoney(getJobReceived(j))+'</td><td>'+rMoney(getJobBalance(j))+'</td><td>'+rMoney(getJobExpenses(j.id))+'</td><td><span class="tag">'+rEsc(getJobStatus(j))+'</span></td></tr>').join('')+'</tbody></table></div>';
+  const pays=[];c.jobs.forEach(j=>(j.payments||[]).forEach(p=>pays.push({j,p})));
+  pays.sort((a,b)=>(b.p.date||'9999').localeCompare(a.p.date||'9999'));
+  h+='<div style="font-weight:700;font-size:15px;margin-bottom:8px;color:var(--navy);">Payment history and schedule</div><div style="overflow-x:auto;"><table class="data-table" style="margin-bottom:18px;"><thead><tr><th>Date</th><th>Project</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead><tbody>'+
+    (pays.length?pays.map(({j,p})=>{const late=p.status!=='Received'&&p.date&&p.date<t;return'<tr><td>'+(p.date?formatDate(p.date):'—')+'</td><td>'+rEsc(j.project)+'</td><td>'+rEsc(p.type)+'</td><td>'+rMoney(p.amount)+'</td><td>'+(p.status==='Received'?'<span class="tag green">Received</span>':'<span class="tag"'+(late?' style="background:#fdecea;color:var(--danger);"':'')+'>'+rEsc(p.status)+(late?' · '+rDaysLate(p.date,t)+'d late':'')+'</span>')+'</td></tr>';}).join(''):'<tr><td colspan="5" style="color:var(--text-muted);">No payments scheduled yet.</td></tr>')+'</tbody></table></div>';
+  const ids=new Set(c.jobs.map(j=>j.id));const exps=(ACCT.expenses||[]).filter(e=>ids.has(e.jobId)).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  h+='<div style="font-weight:700;font-size:15px;margin-bottom:8px;color:var(--navy);">Job expenses</div><div style="overflow-x:auto;"><table class="data-table" style="margin-bottom:18px;"><thead><tr><th>Date</th><th>Description</th><th>Type</th><th>Vendor</th><th>Amount</th></tr></thead><tbody>'+
+    (exps.length?exps.map(e=>'<tr><td>'+(e.date?formatDate(e.date):'—')+'</td><td>'+rEsc(e.desc)+'</td><td>'+rEsc(e.type)+'</td><td>'+rEsc(e.vendor||'—')+'</td><td>'+rMoney(e.amount)+'</td></tr>').join(''):'<tr><td colspan="5" style="color:var(--text-muted);">No expenses linked to these jobs.</td></tr>')+'</tbody></table></div>';
+  h+='<div style="font-size:13px;color:var(--text-muted);">Invoices will appear here once invoicing is built.</div>';
+  document.getElementById('client-account-title').textContent=c.name;
+  document.getElementById('client-account-body').innerHTML=h;
+  openModal('modal-client-account');
 }
 
 // ─── INIT ───
