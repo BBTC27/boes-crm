@@ -20,7 +20,7 @@
   }
   *{box-sizing:border-box;margin:0;padding:0;}
   body{font-family:'Barlow',sans-serif;font-size:14px;background:var(--bg);color:var(--text);min-height:100vh;display:flex;}
-  #sidebar{width:var(--sidebar-w);background:var(--navy-dark);color:var(--white);display:flex;flex-direction:column;min-height:100vh;position:fixed;top:0;left:0;z-index:100;box-shadow:2px 0 12px rgba(0,0,0,0.18);}
+  #sidebar{width:var(--sidebar-w);background:var(--navy-dark);color:var(--white);display:flex;flex-direction:column;min-height:100vh;height:100vh;overflow-y:auto;position:fixed;top:0;left:0;z-index:100;box-shadow:2px 0 12px rgba(0,0,0,0.18);}
   .sidebar-logo{padding:18px 16px 14px;border-bottom:1px solid rgba(255,255,255,0.10);}
   .sidebar-logo .brand{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;color:var(--green);letter-spacing:0.5px;line-height:1.1;}
   .sidebar-logo .sub{font-size:12px;color:rgba(255,255,255,0.45);letter-spacing:1.5px;text-transform:uppercase;margin-top:2px;}
@@ -671,6 +671,7 @@
           <option value="">All Categories</option><option value="Training">Training</option><option value="Consulting">Consulting</option>
         </select>
         <button class="btn btn-success btn-sm" onclick="openJobModal()">+ New Job</button>
+        <button class="btn btn-outline btn-sm" onclick="openJobsFromDeals()">⬇ Create jobs from Production</button>
       </div>
       <div class="card">
         <table class="data-table">
@@ -1027,6 +1028,26 @@
 </div>
 
 <!-- MODAL: JOB DETAIL -->
+<div class="modal-overlay" id="modal-jobs-from-deals">
+  <div class="modal" style="max-width:1000px;">
+    <div class="modal-header">
+      <h3>Create jobs from Production projects</h3>
+      <button class="modal-close" onclick="closeModal('modal-jobs-from-deals')">✕</button>
+    </div>
+    <div class="modal-body">
+      <label style="display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:10px;cursor:pointer;"><input type="checkbox" id="fd-archived" onchange="renderJobsFromDeals()"> Also show archived projects</label>
+      <div id="fd-body"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-jobs-from-deals')">Cancel</button>
+      <button class="btn btn-success" id="fd-create" onclick="createJobsFromDeals()">Create ticked jobs</button>
+    </div>
+  </div>
+</div>
+<div id="app-update-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:99990;background:#33CC66;color:#0b2a16;padding:10px 16px;align-items:center;justify-content:center;gap:14px;font-weight:600;font-size:15px;box-shadow:0 2px 10px rgba(0,0,0,.2);">
+  <span>A new version of the Command Center is ready.</span>
+  <button onclick="applyAppUpdate()" style="background:#1A3E6D;color:#fff;border:0;border-radius:6px;padding:7px 14px;font-size:15px;font-weight:600;cursor:pointer;">Update now</button>
+</div>
 <div class="modal-overlay" id="modal-client-account">
   <div class="modal" style="max-width:900px;">
     <div class="modal-header">
@@ -1245,7 +1266,8 @@ function cloudIndexes(db){
   (db.contacts||[]).forEach(c=>{const nm=CV.s(c.name)||[CV.s(c.fname),CV.s(c.lname)].filter(Boolean).join(' ');const k=CV.norm(nm);if(k)(contacts[k]=contacts[k]||[]).push(c.id);});
   (db.deals||[]).concat(db.archive||[]).forEach(d=>{const k=CV.norm(d.title);if(k)(deals[k]=deals[k]||[]).push(d.id);});
   const pick=(ix,raw)=>{const ids=ix[CV.norm(raw)];return ids&&ids.length===1?ids[0]:null;};
-  return{contact:raw=>pick(contacts,raw),deal:raw=>pick(deals,raw)};
+  const dealIds=new Set((db.deals||[]).concat(db.archive||[]).map(d=>d.id));
+  return{contact:raw=>pick(contacts,raw),deal:raw=>pick(deals,raw),dealExists:id=>dealIds.has(id)};
 }
 function ensureStamp(rec,field){if(!rec[field]&&rec[field]!==0)rec[field]=Date.now();return rec[field];}
 const TO_ROW={
@@ -1291,10 +1313,10 @@ const TO_ROW={
 Object.assign(TO_ROW,{
   jobs(j,ix){
     const start=CV.date(j.start),end=CV.date(j.end);
-    const extra=CV.left(j,['id','org','project','value','category','subcat','contact','start','end','notes','payments','writeOffs','created']);
+    const extra=CV.left(j,['id','dealId','org','project','value','category','subcat','contact','start','end','notes','payments','writeOffs','created']);
     if(CV.s(j.start)&&!start)extra.startRaw=j.start;
     if(CV.s(j.end)&&!end)extra.endRaw=j.end;
-    return{id:j.id,deal_id:ix.deal(j.project),contact_id:ix.contact(j.contact),contact_name:CV.n(j.contact),org:CV.n(j.org),project:CV.s(j.project),
+    return{id:j.id,deal_id:(j.dealId&&ix.dealExists(j.dealId))?j.dealId:ix.deal(j.project),contact_id:ix.contact(j.contact),contact_name:CV.n(j.contact),org:CV.n(j.org),project:CV.s(j.project),
       value:CV.money(j.value),category:CV.n(j.category),subcategory:CV.n(j.subcat),start_date:start,end_date:end,notes:CV.n(j.notes),extra,created_at:CV.ts(ensureStamp(j,'created'))};
   },
   job_payments(p,jobId,pos){
@@ -1357,7 +1379,7 @@ const FROM_ROW={
     orgName:r.org||'',proboardPin:r.proboard_pin||'',tags:r.tags||[],notes:r.notes||'',created:CV.ms(r.created_at)};}
 };
 Object.assign(FROM_ROW,{
-  jobs(r){const x=r.extra||{};return{...CV.unraw(x),id:r.id,org:r.org||'',project:r.project||'',value:Number(r.value)||0,category:r.category||'',subcat:r.subcategory||'',
+  jobs(r){const x=r.extra||{};return{...CV.unraw(x),id:r.id,dealId:r.deal_id||'',org:r.org||'',project:r.project||'',value:Number(r.value)||0,category:r.category||'',subcat:r.subcategory||'',
     contact:r.contact_name||'',start:r.start_date||x.startRaw||'',end:r.end_date||x.endRaw||'',notes:r.notes||'',payments:[],writeOffs:[],created:CV.ms(r.created_at)};},
   job_payments(r){const x=r.extra||{};return{...CV.unraw(x),id:r.id,type:r.type||'',amount:Number(r.amount)||0,date:r.scheduled_on||r.paid_on||x.dateRaw||'',status:r.status||'Expected',notes:r.notes||''};},
   job_write_offs(r){return{...CV.unraw(r.extra),id:r.id,amount:Number(r.amount)||0,date:r.written_off_on||'',reason:r.reason||''};},
@@ -2826,7 +2848,7 @@ function saveJob(){
     writeOffs:[],
     created:editingJobId?((ACCT.jobs||[]).find(j=>j.id===editingJobId)||{}).created||Date.now():Date.now()
   };
-  if(editingJobId){const idx=(ACCT.jobs||[]).findIndex(j=>j.id===editingJobId);if(idx>=0){job.writeOffs=ACCT.jobs[idx].writeOffs||[];ACCT.jobs[idx]=job;}}
+  if(editingJobId){const idx=(ACCT.jobs||[]).findIndex(j=>j.id===editingJobId);if(idx>=0){job.writeOffs=ACCT.jobs[idx].writeOffs||[];ACCT.jobs[idx]={...ACCT.jobs[idx],...job};}}
   else{if(!ACCT.jobs)ACCT.jobs=[];ACCT.jobs.unshift(job);}
   editingJobId=null;jobPayRows=[];
   saveAcct();renderJobsView();renderForecast();updateAcctAlertBadge();
@@ -3455,6 +3477,106 @@ function openClientAccount(key){
   document.getElementById('client-account-body').innerHTML=h;
   openModal('modal-client-account');
 }
+
+// ─── CREATE ACCOUNTING JOBS FROM PRODUCTION PROJECTS ───
+// Each Production project can become an accounting job, pre-filled with
+// client, project, contract value, dates, and contact, and linked to the
+// project. Projects that already have a job are left out.
+function fdGuessCategory(t){
+  t=(t||'').toLowerCase();
+  if(/\b(plan|eap|erp|emergency action|review|compliance|audit|exercise|drill|continuity|consult|assessment)\b/.test(t)&&!/\b(course|class|training|refresher|academy)\b/.test(t))return'Consulting';
+  return'Training';
+}
+function fdGuessSubcat(cat,t){
+  t=(t||'').toLowerCase();
+  if(cat==='Consulting'){
+    if(/review|revision/.test(t))return'Plan Review & Revision';
+    if(/compliance|audit/.test(t))return'Compliance';
+    if(/exercise|drill|tabletop/.test(t))return'Exercises';
+    if(/continuity/.test(t))return'Business Continuity';
+    if(/safety/.test(t))return'Safety Planning';
+    return'Plan Writing';
+  }
+  if(/hazmat|hazardous/.test(t))return'Hazmat Training';
+  if(/incident command|\bics\b|incident safety/.test(t))return'Incident Command Training';
+  if(/nfpa|cfps|certif|pro ?board/.test(t))return'NFPA Certification Training';
+  if(/fire|firefight|extinguish|bundle|officer|instructor/.test(t))return'Fire Training';
+  if(/safety/.test(t))return'Safety Training';
+  return'Corporate Training';
+}
+function fdHasJob(d){
+  const jobs=ACCT.jobs||[];
+  if(jobs.some(j=>j.dealId===d.id))return true;
+  return jobs.some(j=>!j.dealId&&CV.norm(j.project)===CV.norm(d.title)&&CV.norm(j.org)===CV.norm(d.org));
+}
+function fdCandidates(){
+  const incArch=!!(document.getElementById('fd-archived')||{}).checked;
+  const list=(DB.deals||[]).filter(d=>d.board==='production').concat(incArch?(DB.archive||[]).filter(d=>d.board==='production'):[]);
+  return list.filter(d=>!fdHasJob(d)).sort((a,b)=>(a.startDate||'9999').localeCompare(b.startDate||'9999'));
+}
+function openJobsFromDeals(){renderJobsFromDeals();openModal('modal-jobs-from-deals');}
+function fdSubcatOptions(cat,sel){return(cat==='Consulting'?CONSULTING_SUBCATS:TRAINING_SUBCATS).map(o=>'<option'+(o===sel?' selected':'')+'>'+rEsc(o)+'</option>').join('');}
+function fdCatChange(i){const c=document.getElementById('fd-cat-'+i).value;document.getElementById('fd-sub-'+i).innerHTML=fdSubcatOptions(c,fdGuessSubcat(c,document.getElementById('fd-row-'+i).dataset.title));}
+function renderJobsFromDeals(){
+  const list=fdCandidates();const body=document.getElementById('fd-body');
+  const already=(DB.deals||[]).filter(d=>d.board==='production'&&fdHasJob(d)).length;
+  if(!list.length){body.innerHTML='<div style="color:var(--text-muted);padding:10px 0;">Every Production project already has an accounting job'+(already?' ('+already+')':'')+'. Nothing to add.</div>';document.getElementById('fd-create').disabled=true;return;}
+  document.getElementById('fd-create').disabled=false;
+  let h='<p style="font-size:14px;color:var(--text-muted);margin:0 0 10px;">Tick the projects to add. Category is a best guess from the title; change it if needed. Payments are added later, per job. Projects already <strong>Paid/Closed</strong> start unticked: those are better brought in with the Wave import, which includes their payments.'+(already?' '+already+' project(s) already have a job and are not shown.':'')+'</p>';
+  h+='<div style="overflow-x:auto;"><table class="data-table"><thead><tr><th><input type="checkbox" id="fd-all" onchange="document.querySelectorAll(\'.fd-pick\').forEach(c=>c.checked=this.checked)"></th><th>Project</th><th>Client</th><th>Stage</th><th>Value</th><th>Dates</th><th>Category</th><th>Service line</th></tr></thead><tbody>';
+  list.forEach((d,i)=>{
+    const cat=fdGuessCategory(d.title+' '+(d.notes||''));const sub=fdGuessSubcat(cat,d.title+' '+(d.notes||''));
+    const checked=d.stage!=='Paid/Closed'&&!d.archivedAt;
+    h+='<tr id="fd-row-'+i+'" data-id="'+rEsc(d.id)+'" data-title="'+rEsc(d.title)+'"><td><input type="checkbox" class="fd-pick" id="fd-pick-'+i+'"'+(checked?' checked':'')+'></td><td style="font-weight:600;">'+rEsc(d.title)+'</td><td>'+rEsc(d.org||'—')+'</td><td><span class="tag">'+rEsc(d.stage||'')+(d.archivedAt?' · archived':'')+'</span></td><td>'+rMoney(d.value)+'</td><td style="white-space:nowrap;">'+(d.startDate?formatDate(d.startDate):'—')+(d.closeDate?' – '+formatDate(d.closeDate):'')+'</td>'+
+      '<td><select class="inline-select" id="fd-cat-'+i+'" onchange="fdCatChange('+i+')"><option'+(cat==='Training'?' selected':'')+'>Training</option><option'+(cat==='Consulting'?' selected':'')+'>Consulting</option></select></td>'+
+      '<td><select class="inline-select" id="fd-sub-'+i+'">'+fdSubcatOptions(cat,sub)+'</select></td></tr>';
+  });
+  body.innerHTML=h+'</tbody></table></div>';
+}
+function createJobsFromDeals(){
+  const list=fdCandidates();let n=0;const all=(DB.deals||[]).concat(DB.archive||[]);
+  if(!ACCT.jobs)ACCT.jobs=[];
+  list.forEach((_,i)=>{
+    const pick=document.getElementById('fd-pick-'+i);if(!pick||!pick.checked)return;
+    const row=document.getElementById('fd-row-'+i);const d=all.find(x=>x.id===row.dataset.id);if(!d||fdHasJob(d))return;
+    ACCT.jobs.unshift({id:acctUID(),dealId:d.id,org:d.org||'',project:d.title||'',value:parseFloat(d.value)||0,
+      category:document.getElementById('fd-cat-'+i).value,subcat:document.getElementById('fd-sub-'+i).value,
+      contact:d.contact||'',start:d.startDate||'',end:d.closeDate||'',notes:'Created from Production project',payments:[],writeOffs:[],created:Date.now()});
+    n++;
+  });
+  if(!n){toast('Nothing ticked.',true);return;}
+  saveAcct();closeModal('modal-jobs-from-deals');renderJobsView();try{renderForecast();updateAcctAlertBadge();}catch(e){}
+  toast('✅ Created '+n+' job'+(n===1?'':'s')+' from Production. Add payment schedules from each job.');
+}
+
+// ─── "NEW VERSION AVAILABLE" BANNER ───
+// Checks the published app every 5 minutes (and when you come back to the
+// tab). If a newer version has been uploaded, offers a one-click update.
+const APP_BUILD='20260927140111';
+let appUpdateShown=false;
+async function checkForAppUpdate(){
+  if(appUpdateShown||!window.fetch||location.protocol==='file:')return;
+  try{
+    const r=await fetch(location.pathname+'?check='+Date.now(),{cache:'no-store'});if(!r.ok)return;
+    const m=(await r.text()).match(/const APP_BUILD='([^']+)'/);
+    if(m&&m[1]!==APP_BUILD&&m[1]!=='__APP_BUILD__'){appUpdateShown=true;showAppUpdateBanner(m[1]);}
+  }catch(e){}
+}
+function showAppUpdateBanner(build){
+  const b=document.getElementById('app-update-banner');if(!b)return;
+  b.dataset.build=build;b.style.display='flex';
+}
+function applyAppUpdate(){
+  if(CLOUD.timer||CLOUD.pushing){toast('Finishing a save first, one moment…');setTimeout(applyAppUpdate,1500);return;}
+  const b=document.getElementById('app-update-banner');
+  location.href=location.pathname+'?v='+encodeURIComponent((b&&b.dataset.build)||Date.now());
+}
+(function(){
+  try{if(/[?&]v=/.test(location.search)&&history.replaceState)history.replaceState(null,'',location.pathname+location.hash);}catch(e){}
+  setInterval(checkForAppUpdate,5*60*1000);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkForAppUpdate();});
+  setTimeout(checkForAppUpdate,20000);
+})();
 
 // ─── INIT ───
 // Data now comes from Supabase after sign-in (see CLOUD DATA above).
