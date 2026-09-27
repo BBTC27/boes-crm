@@ -1149,17 +1149,22 @@ let DB=defaultData();
 // in-memory DB object it always had; save() works out which records
 // changed and writes only those. Changes made on another computer arrive
 // through Supabase Realtime and appear without a refresh.
-// Accounting screens (jobs, expenses, overhead) still save in this
-// browser for now; they move to Supabase with the invoicing phase.
+// Accounting (jobs with their payment schedules, expenses, overhead)
+// lives in Supabase too. The first time this version runs in a browser,
+// any accounting records saved only in that browser are moved up.
 // The Anthropic API key is kept only in this browser, never in the cloud.
 const SUPABASE_URL='https://gppskzsoxprwqymfcjtu.supabase.co';
 const SUPABASE_KEY='sb_publishable_rrCuKe-DfCoz5A05yJ-dFA_BT4QpXKa';
 const APIKEY_LOCAL='boes_crm_apikey';
-const CLOUD_TABLES=['contacts','deals','tasks','activities','students','settings'];
+const CRM_TABLES=['contacts','deals','tasks','activities','students','settings'];
+const ACCT_TABLES=['jobs','job_payments','job_write_offs','expenses','overhead'];
+const CLOUD_TABLES=CRM_TABLES.concat(ACCT_TABLES); // write order: parents before children
+const ACCT_MOVED_FLAG='boes_acct_v2_moved_to_cloud';
+const DEDUCT=['yes','partial','no'];
 const CLOUD_PK={settings:'key'};
 const SETTING_SKIP=['contacts','deals','archive','tasks','activities','students','apiKey'];
 let sb=null,CLOUD_READY=false;
-const CLOUD={snap:{},pushing:false,again:false,timer:null,failed:false,user:null,hiddenAt:0,lastPush:0};
+const CLOUD={acctMovePending:0,snap:{},pushing:false,again:false,timer:null,failed:false,user:null,hiddenAt:0,lastPush:0};
 
 const CV={
   s:v=>(v===undefined||v===null)?'':String(v).trim(),
@@ -1223,6 +1228,38 @@ const TO_ROW={
       extra:CV.left(s,['id','fname','lname','name','email','phone','orgName','org','title','country','proboardPin','tags','notes','created']),created_at:CV.ts(ensureStamp(s,'created'))};
   }
 };
+Object.assign(TO_ROW,{
+  jobs(j,ix){
+    const start=CV.date(j.start),end=CV.date(j.end);
+    const extra=CV.left(j,['id','org','project','value','category','subcat','contact','start','end','notes','payments','writeOffs','created']);
+    if(CV.s(j.start)&&!start)extra.startRaw=j.start;
+    if(CV.s(j.end)&&!end)extra.endRaw=j.end;
+    return{id:j.id,deal_id:ix.deal(j.project),contact_id:ix.contact(j.contact),contact_name:CV.n(j.contact),org:CV.n(j.org),project:CV.s(j.project),
+      value:CV.money(j.value),category:CV.n(j.category),subcategory:CV.n(j.subcat),start_date:start,end_date:end,notes:CV.n(j.notes),extra,created_at:CV.ts(ensureStamp(j,'created'))};
+  },
+  job_payments(p,jobId,pos){
+    const d=CV.date(p.date);const status=CV.s(p.status)||'Expected';
+    const extra=CV.left(p,['id','type','amount','date','status','notes']);
+    if(CV.s(p.date)&&!d)extra.dateRaw=p.date;
+    return{id:p.id,job_id:jobId,type:CV.n(p.type),amount:CV.money(p.amount),status,scheduled_on:d,paid_on:status==='Received'?d:null,position:pos,notes:CV.n(p.notes),extra};
+  },
+  job_write_offs(w,jobId){
+    return{id:w.id,job_id:jobId,amount:CV.money(w.amount),written_off_on:CV.date(w.date),reason:CV.n(w.reason),extra:CV.left(w,['id','amount','date','reason'])};
+  },
+  expenses(e,ix,jobIds){
+    const d=CV.date(e.date);const jid=e.jobId&&jobIds[e.jobId]?e.jobId:null;
+    const extra=CV.left(e,['id','desc','amount','type','vendor','date','deductible','notes','jobId','created']);
+    if(CV.s(e.date)&&!d)extra.dateRaw=e.date;
+    if(e.jobId&&!jid)extra.jobIdRaw=e.jobId;
+    return{id:e.id,job_id:jid,description:CV.s(e.desc)||'(no description)',amount:CV.money(e.amount),type:CV.n(e.type),vendor:CV.n(e.vendor),spent_on:d,
+      deductible:DEDUCT.includes(e.deductible)?e.deductible:'yes',notes:CV.n(e.notes),extra,created_at:CV.ts(ensureStamp(e,'created'))};
+  },
+  overhead(o){
+    return{id:o.id,name:CV.s(o.name)||'(no name)',amount:CV.money(o.amount),category:CV.n(o.category),frequency:CV.n(o.frequency),due:CV.n(o.due),vendor:CV.n(o.vendor),
+      status:CV.n(o.status),deductible:DEDUCT.includes(o.deductible)?o.deductible:'yes',notes:CV.n(o.notes),
+      extra:CV.left(o,['id','name','amount','category','frequency','due','vendor','status','deductible','notes','created']),created_at:CV.ts(ensureStamp(o,'created'))};
+  }
+});
 function settingRow(k,v){return{key:k,value:(v!==null&&typeof v==='object')?v:{value:v}};}
 function rowsFromDB(db){
   const ix=cloudIndexes(db);const out={};CLOUD_TABLES.forEach(t=>out[t]=[]);
@@ -1233,6 +1270,15 @@ function rowsFromDB(db){
   (db.activities||[]).forEach(a=>{if(!a.id)a.id=uid();out.activities.push(TO_ROW.activities(a,ix));});
   (db.students||[]).forEach(s=>{if(!s.id)s.id=uid();out.students.push(TO_ROW.students(s,ix));});
   Object.keys(db).forEach(k=>{if(!SETTING_SKIP.includes(k)&&db[k]!==undefined&&typeof db[k]!=='function')out.settings.push(settingRow(k,db[k]));});
+  const acct=ACCT||{};const jobIds={};
+  (acct.jobs||[]).forEach(j=>{if(!j.id)j.id=acctUID();jobIds[j.id]=true;});
+  (acct.jobs||[]).forEach(j=>{
+    out.jobs.push(TO_ROW.jobs(j,ix));
+    (j.payments||[]).forEach((p,i)=>{if(!p.id)p.id=acctUID();out.job_payments.push(TO_ROW.job_payments(p,j.id,i));});
+    (j.writeOffs||[]).forEach(w=>{if(!w.id)w.id=acctUID();out.job_write_offs.push(TO_ROW.job_write_offs(w,j.id));});
+  });
+  (acct.expenses||[]).forEach(e=>{if(!e.id)e.id=acctUID();out.expenses.push(TO_ROW.expenses(e,ix,jobIds));});
+  (acct.overhead||[]).forEach(o=>{if(!o.id)o.id=acctUID();out.overhead.push(TO_ROW.overhead(o));});
   return out;
 }
 
@@ -1250,6 +1296,25 @@ const FROM_ROW={
   students(r){return{...CV.unraw(r.extra),id:r.id,fname:r.first_name||'',lname:r.last_name||'',email:r.email||'',phone:r.phone||'',country:r.country||'',title:r.title||'',
     orgName:r.org||'',proboardPin:r.proboard_pin||'',tags:r.tags||[],notes:r.notes||'',created:CV.ms(r.created_at)};}
 };
+Object.assign(FROM_ROW,{
+  jobs(r){const x=r.extra||{};return{...CV.unraw(x),id:r.id,org:r.org||'',project:r.project||'',value:Number(r.value)||0,category:r.category||'',subcat:r.subcategory||'',
+    contact:r.contact_name||'',start:r.start_date||x.startRaw||'',end:r.end_date||x.endRaw||'',notes:r.notes||'',payments:[],writeOffs:[],created:CV.ms(r.created_at)};},
+  job_payments(r){const x=r.extra||{};return{...CV.unraw(x),id:r.id,type:r.type||'',amount:Number(r.amount)||0,date:r.scheduled_on||r.paid_on||x.dateRaw||'',status:r.status||'Expected',notes:r.notes||''};},
+  job_write_offs(r){return{...CV.unraw(r.extra),id:r.id,amount:Number(r.amount)||0,date:r.written_off_on||'',reason:r.reason||''};},
+  expenses(r){const x=r.extra||{};return{...CV.unraw(x),id:r.id,desc:r.description||'',amount:Number(r.amount)||0,type:r.type||'',vendor:r.vendor||'',date:r.spent_on||x.dateRaw||'',
+    deductible:r.deductible||'yes',notes:r.notes||'',jobId:r.job_id||x.jobIdRaw||null,jobLabel:x.jobLabel===undefined?null:x.jobLabel,created:CV.ms(r.created_at)};},
+  overhead(r){return{...CV.unraw(r.extra),id:r.id,name:r.name||'',amount:Number(r.amount)||0,category:r.category||'',frequency:r.frequency||'',due:r.due||'',vendor:r.vendor||'',
+    status:r.status||'active',deductible:r.deductible||'yes',notes:r.notes||'',created:CV.ms(r.created_at)};}
+});
+function buildAcct(got){
+  const a=defaultAcct();const byJob={};
+  a.jobs=got.jobs.map(r=>{const j=FROM_ROW.jobs(r);byJob[j.id]=j;return j;}).sort(byNewest('created'));
+  got.job_payments.slice().sort((p,q)=>(p.position||0)-(q.position||0)).forEach(r=>{const j=byJob[r.job_id];if(j)j.payments.push(FROM_ROW.job_payments(r));});
+  got.job_write_offs.forEach(r=>{const j=byJob[r.job_id];if(j)j.writeOffs.push(FROM_ROW.job_write_offs(r));});
+  a.expenses=got.expenses.map(FROM_ROW.expenses).sort(byNewest('created'));
+  a.overhead=got.overhead.map(FROM_ROW.overhead).sort(byNewest('created'));
+  return a;
+}
 function settingValue(v){if(v&&typeof v==='object'&&!Array.isArray(v)){const k=Object.keys(v);if(k.length===1&&k[0]==='value')return v.value;}return v;}
 const byNewest=f=>(a,b)=>(b[f]||0)-(a[f]||0);
 function snapKey(row){const r={...row};delete r.updated_at;return JSON.stringify(r);}
@@ -1267,6 +1332,43 @@ async function fetchTable(t){
   }
   return all;
 }
+async function reloadAcct(){
+  if(CLOUD.timer||CLOUD.pushing){scheduleAcctReload(1000);return;}
+  const got={};for(const t of ACCT_TABLES)got[t]=await fetchTable(t);
+  if(CLOUD.timer||CLOUD.pushing){scheduleAcctReload(1000);return;}
+  ACCT=buildAcct(got);
+  const rows=rowsFromDB(DB);
+  ACCT_TABLES.forEach(t=>{const pk=CLOUD_PK[t]||'id';CLOUD.snap[t]={};rows[t].forEach(r=>{CLOUD.snap[t][r[pk]]=snapKey(r);});});
+  refreshAfterRemote();try{updateAcctAlertBadge();}catch(e){}
+}
+let acctReloadTimer=null;
+function scheduleAcctReload(ms){clearTimeout(acctReloadTimer);acctReloadTimer=setTimeout(()=>{reloadAcct().catch(e=>console.error('Accounting refresh failed:',e));},ms===undefined?400:ms);}
+function acctEcho(table,payload){
+  const pk=CLOUD_PK[table]||'id';const snap=CLOUD.snap[table]||{};
+  if(payload.eventType==='DELETE'){const id=payload.old&&payload.old[pk];return !id||snap[id]===undefined;}
+  const r=payload.new;if(!r||r[pk]===undefined)return true;
+  let row;
+  if(table==='job_payments')row=TO_ROW.job_payments(FROM_ROW.job_payments(r),r.job_id,r.position||0);
+  else if(table==='job_write_offs')row=TO_ROW.job_write_offs(FROM_ROW.job_write_offs(r),r.job_id);
+  else if(table==='expenses'){const ids={};(ACCT.jobs||[]).forEach(j=>ids[j.id]=true);ids[r.job_id]=true;row=TO_ROW.expenses(FROM_ROW.expenses(r),cloudIndexes(DB),ids);}
+  else if(table==='jobs')row=TO_ROW.jobs(FROM_ROW.jobs(r),cloudIndexes(DB));
+  else row=TO_ROW[table](FROM_ROW[table](r));
+  return snapKey(row)===snap[r[pk]];
+}
+function moveLocalAcct(){
+  try{
+    if(localStorage.getItem(ACCT_MOVED_FLAG))return 0;
+    const raw=localStorage.getItem(ACCT_KEY);
+    if(!raw){localStorage.setItem(ACCT_MOVED_FLAG,new Date().toISOString());return 0;}
+    const loc=JSON.parse(raw)||{};let n=0;
+    ['jobs','expenses','overhead'].forEach(k=>{
+      const have=new Set((ACCT[k]||[]).map(x=>x.id));
+      (loc[k]||[]).forEach(r=>{if(!r||typeof r!=='object')return;if(!r.id)r.id=acctUID();if(have.has(r.id))return;ACCT[k].push(r);have.add(r.id);n++;});
+    });
+    if(!n)localStorage.setItem(ACCT_MOVED_FLAG,new Date().toISOString());
+    return n;
+  }catch(e){console.error('Could not read accounting saved in this browser:',e);return 0;}
+}
 async function cloudLoad(){
   const got={};for(const t of CLOUD_TABLES)got[t]=await fetchTable(t);
   const next=defaultData();
@@ -1279,7 +1381,7 @@ async function cloudLoad(){
   next.students=got.students.map(FROM_ROW.students).sort(byNewest('created'));
   got.settings.forEach(s=>{if(!SETTING_SKIP.includes(s.key))next[s.key]=settingValue(s.value);});
   next.apiKey=localApiKey();
-  DB=next;takeSnapshot();
+  DB=next;ACCT=buildAcct(got);takeSnapshot();
 }
 function localApiKey(){
   try{
@@ -1340,6 +1442,11 @@ async function cloudPush(){
       }
     }
     CLOUD.failed=false;CLOUD.lastPush=Date.now();setCloudLabel('saved');
+    if(CLOUD.acctMovePending){
+      try{localStorage.setItem(ACCT_MOVED_FLAG,new Date().toISOString());}catch(e){}
+      toast('☁️ Moved '+CLOUD.acctMovePending+' accounting record(s) from this computer to the cloud.');
+      CLOUD.acctMovePending=0;
+    }
   }catch(e){
     CLOUD.failed=true;setCloudLabel('error',e.message);console.error('Cloud save failed:',e);
     if(!CLOUD.timer)CLOUD.timer=setTimeout(()=>{CLOUD.timer=null;cloudPush();},15000);
@@ -1388,7 +1495,9 @@ function refreshAfterRemote(){
     }catch(e){console.error(e);}
   },250);
 }
-function onRemoteChange(table,payload){try{if(applyRemote(table,payload))refreshAfterRemote();}catch(e){console.error('Live update error:',e);}}
+function onRemoteChange(table,payload){
+  if(ACCT_TABLES.includes(table)){try{if(!acctEcho(table,payload))scheduleAcctReload();}catch(e){console.error(e);scheduleAcctReload();}return;}
+  try{if(applyRemote(table,payload))refreshAfterRemote();}catch(e){console.error('Live update error:',e);}}
 function subscribeRealtime(){
   const ch=sb.channel('command-center-data');
   CLOUD_TABLES.forEach(t=>ch.on('postgres_changes',{event:'*',schema:'public',table:t},p=>onRemoteChange(t,p)));
@@ -1434,9 +1543,9 @@ async function startApp(user){
   try{await cloudLoad();}
   catch(e){showGate('Couldn\'t load your data: '+e.message,false,true);return;}
   migrateStagesAndTimestamps();
+  CLOUD.acctMovePending=moveLocalAcct();
   CLOUD_READY=true;
   runArchivalSweep(true);
-  loadAcct();
   seedWhatsAppUpgradeTask();
   renderCommandCenter();renderDashboard();renderAIHistory();
   updateBadges();updateStudentBadge();updateAcctAlertBadge();
@@ -2530,7 +2639,7 @@ function exportStudentsCSV(){
 
 // ═══════════════════════════════════════════════
 // ─── ACCOUNTING ENGINE ───
-// Storage: boes_acct_v2 (separate from CRM data)
+// Storage: Supabase (jobs, job_payments, job_write_offs, expenses, overhead)
 // ═══════════════════════════════════════════════
 const ACCT_KEY='boes_acct_v2';
 const TRAINING_SUBCATS=['Fire Training','Safety Training','Hazmat Training','Corporate Training','NFPA Certification Training','Incident Command Training'];
@@ -2541,7 +2650,7 @@ const OH_CATS=['Rent / Facilities','Insurance','Software / Subscriptions','Profe
 function defaultAcct(){return{jobs:[],expenses:[],overhead:[],version:'2.0'};}
 let ACCT=defaultAcct();
 
-function saveAcct(){try{localStorage.setItem(ACCT_KEY,JSON.stringify(ACCT));scheduleSync();}catch(e){toast('Accounting save error: '+e.message,true);}}
+function saveAcct(){save();} // accounting now saves to Supabase with everything else
 function loadAcct(){const raw=localStorage.getItem(ACCT_KEY);if(raw){try{ACCT={...defaultAcct(),...JSON.parse(raw)};}catch(e){}}}
 
 // ── HELPERS ──
@@ -3117,7 +3226,7 @@ function updateAcctAlertBadge(){
 
 // ─── INIT ───
 // Data now comes from Supabase after sign-in (see CLOUD DATA above).
-// load() is kept only for reference; it reads the old browser-only copy.
+// load() and loadAcct() are kept only for reference; they read the old browser-only copies.
 boot();
 </script>
   <script src="rfp-sync.js"></script>
