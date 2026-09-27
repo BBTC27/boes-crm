@@ -298,6 +298,21 @@
 </style>
 </head>
 <body>
+<div id="cloud-gate" style="position:fixed;inset:0;background:#1A3E6D;display:flex;align-items:center;justify-content:center;z-index:100000;padding:16px;">
+  <div style="background:#fff;border-radius:12px;padding:28px 26px;width:100%;max-width:380px;box-shadow:0 10px 40px rgba(0,0,0,.35);font-family:inherit;">
+    <div style="font-size:21px;font-weight:700;color:#1A3E6D;margin-bottom:4px;">Boes &amp; Boes Command Center</div>
+    <div id="cg-msg" style="font-size:15px;color:#5b6675;margin:0 0 14px;">Connecting…</div>
+    <form id="cg-form" style="display:none;" onsubmit="return cloudSignIn(event)">
+      <label for="cg-email" style="display:block;font-size:13px;color:#5b6675;margin:8px 0 4px;">Email</label>
+      <input id="cg-email" type="email" autocomplete="username" required style="width:100%;box-sizing:border-box;padding:10px;border:1px solid #B0B0B0;border-radius:6px;font-size:16px;">
+      <label for="cg-pass" style="display:block;font-size:13px;color:#5b6675;margin:12px 0 4px;">Password</label>
+      <input id="cg-pass" type="password" autocomplete="current-password" required style="width:100%;box-sizing:border-box;padding:10px;border:1px solid #B0B0B0;border-radius:6px;font-size:16px;">
+      <button id="cg-btn" type="submit" style="margin-top:18px;width:100%;background:#33CC66;color:#0b2a16;border:0;border-radius:6px;padding:11px;font-size:16px;font-weight:600;cursor:pointer;">Sign in</button>
+    </form>
+    <button id="cg-retry" onclick="location.reload()" style="display:none;margin-top:6px;background:#1A3E6D;color:#fff;border:0;border-radius:6px;padding:10px 18px;font-size:15px;cursor:pointer;">Try again</button>
+  </div>
+</div>
+
 
 <nav id="sidebar">
   <div class="sidebar-logo">
@@ -329,7 +344,7 @@
   <div class="nav-item" onclick="importData()"><span class="nav-icon">📥</span> Import Data</div>
   <div class="nav-item" onclick="syncToSheets(true)"><span class="nav-icon">☁️</span> Sync to Sheets</div>
   <div class="nav-item" onclick="openSyncSettings()"><span class="nav-icon">🔗</span> Sync Settings</div>
-  <div class="sidebar-footer">Fort Wayne, Indiana · EIN 82-5104995<br><span id="last-saved-label">Ready</span><br><span id="sync-status-label">Sheets sync: off</span></div>
+  <div class="sidebar-footer">Fort Wayne, Indiana · EIN 82-5104995<br><span id="cloud-user-label"></span><br><span id="last-saved-label">Ready</span><br><span id="sync-status-label">Sheets sync: off</span></div>
 </nav>
 
 <div id="main">
@@ -1114,6 +1129,7 @@
 <div id="toast-container"></div>
 <input type="file" id="import-file-input" accept=".json" style="display:none" onchange="handleImport(event)">
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
 <script>
 const STORAGE_KEY='boes_crm_v40';
 const V31_KEY='boes_crm_v31';
@@ -1127,7 +1143,319 @@ const ARCHIVE_DAYS=30; // days a job sits in Closed Lost / Paid & Closed before 
 function defaultData(){return{contacts:[],deals:[],tasks:[],activities:[],aiHistory:[],apiKey:'',version:'4.0',focus:{title:'',breadcrumb:'',link:'',updatedTs:null},signals:[],seeded:{},archive:[]};}
 let DB=defaultData();
 
-function save(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(DB));document.getElementById('last-saved-label').textContent='Saved '+new Date().toLocaleTimeString();scheduleSync();}catch(e){toast('Save error: '+e.message,true);}}
+// ─── CLOUD DATA (Supabase) ───────────────────────────────────────────
+// All Command Center data (contacts, projects, tasks, activity log,
+// students, app settings) now lives in Supabase. The app keeps the same
+// in-memory DB object it always had; save() works out which records
+// changed and writes only those. Changes made on another computer arrive
+// through Supabase Realtime and appear without a refresh.
+// Accounting screens (jobs, expenses, overhead) still save in this
+// browser for now; they move to Supabase with the invoicing phase.
+// The Anthropic API key is kept only in this browser, never in the cloud.
+const SUPABASE_URL='https://gppskzsoxprwqymfcjtu.supabase.co';
+const SUPABASE_KEY='sb_publishable_rrCuKe-DfCoz5A05yJ-dFA_BT4QpXKa';
+const APIKEY_LOCAL='boes_crm_apikey';
+const CLOUD_TABLES=['contacts','deals','tasks','activities','students','settings'];
+const CLOUD_PK={settings:'key'};
+const SETTING_SKIP=['contacts','deals','archive','tasks','activities','students','apiKey'];
+let sb=null,CLOUD_READY=false;
+const CLOUD={snap:{},pushing:false,again:false,timer:null,failed:false,user:null,hiddenAt:0,lastPush:0};
+
+const CV={
+  s:v=>(v===undefined||v===null)?'':String(v).trim(),
+  n(v){const s=CV.s(v);return s===''?null:s;},
+  ts(v){if(v===undefined||v===null||v==='')return null;const d=typeof v==='number'?new Date(v):new Date(String(v));return isNaN(d.getTime())?null:d.toISOString();},
+  ms(v){if(v===undefined||v===null||v==='')return undefined;const t=Date.parse(v);return isNaN(t)?undefined:t;},
+  date(v){const s=CV.s(v);if(!/^\d{4}-\d{2}-\d{2}$/.test(s))return null;const d=new Date(s+'T00:00:00Z');return(isNaN(d.getTime())||d.toISOString().slice(0,10)!==s)?null:s;},
+  money(v){const n=typeof v==='number'?v:parseFloat(String(v||'').replace(/[$,]/g,''));return isFinite(n)?Math.round(n*100)/100:0;},
+  tags(v){if(Array.isArray(v))return v.map(CV.s).filter(Boolean);if(typeof v==='string')return v.split(',').map(CV.s).filter(Boolean);return[];},
+  left(o,used){const x={};Object.keys(o||{}).forEach(k=>{if(!used.includes(k)&&o[k]!==undefined)x[k]=o[k];});return x;},
+  norm:s=>CV.s(s).toLowerCase().replace(/\s+/g,' '),
+  unraw(x){const o={...(x||{})};Object.keys(o).forEach(k=>{if(/Raw$/.test(k))delete o[k];});return o;}
+};
+
+// ---- app record -> database row (same rules as the importer) ----
+function cloudIndexes(db){
+  const contacts={},deals={};
+  (db.contacts||[]).forEach(c=>{const nm=CV.s(c.name)||[CV.s(c.fname),CV.s(c.lname)].filter(Boolean).join(' ');const k=CV.norm(nm);if(k)(contacts[k]=contacts[k]||[]).push(c.id);});
+  (db.deals||[]).concat(db.archive||[]).forEach(d=>{const k=CV.norm(d.title);if(k)(deals[k]=deals[k]||[]).push(d.id);});
+  const pick=(ix,raw)=>{const ids=ix[CV.norm(raw)];return ids&&ids.length===1?ids[0]:null;};
+  return{contact:raw=>pick(contacts,raw),deal:raw=>pick(deals,raw)};
+}
+function ensureStamp(rec,field){if(!rec[field]&&rec[field]!==0)rec[field]=Date.now();return rec[field];}
+const TO_ROW={
+  contacts(c,ix){
+    const first=CV.s(c.fname),last=CV.s(c.lname);const name=CV.s(c.name)||[first,last].filter(Boolean).join(' ');
+    const created=CV.ts(ensureStamp(c,'created'));
+    return{id:c.id,name:name||'(no name)',first_name:CV.n(first),last_name:CV.n(last),org:CV.n(c.org),title:CV.n(c.title),phone:CV.n(c.phone),email:CV.n(c.email),
+      tags:CV.tags(c.tags),notes:CV.n(c.notes),extra:CV.left(c,['id','fname','lname','name','org','title','phone','email','tags','notes','created']),created_at:created};
+  },
+  deals(d,ix,isArchived){
+    let board=CV.s(d.board).toLowerCase();if(board!=='pipeline'&&board!=='production')board='pipeline';
+    let prob=parseInt(d.probability,10);prob=isFinite(prob)?Math.min(100,Math.max(0,prob)):null;
+    const start=CV.date(d.startDate),close=CV.date(d.closeDate);
+    const created=CV.ts(ensureStamp(d,'created'));
+    const archivedAt=isArchived?CV.ts(ensureStamp(d,'archivedAt')):null;
+    let archiveYear=parseInt(d.archiveYear,10);if(!isFinite(archiveYear))archiveYear=isArchived?new Date(archivedAt).getUTCFullYear():null;
+    const extra=CV.left(d,['id','title','org','contact','value','board','stage','stageEnteredAt','wonHold','probability','startDate','closeDate','notes','created','archivedAt','archiveYear']);
+    if(CV.s(d.startDate)&&!start)extra.startDateRaw=d.startDate;
+    if(CV.s(d.closeDate)&&!close)extra.closeDateRaw=d.closeDate;
+    return{id:d.id,title:CV.s(d.title)||'(no title)',org:CV.n(d.org),contact_id:ix.contact(d.contact),contact_name:CV.n(d.contact),value:CV.money(d.value),board,stage:CV.n(d.stage),
+      stage_entered_at:CV.ts(d.stageEnteredAt)||created,won_hold:!!d.wonHold,probability:prob,start_date:start,close_date:close,notes:CV.n(d.notes),
+      archived_at:archivedAt,archive_year:archiveYear,extra,created_at:created};
+  },
+  tasks(t,ix){
+    const due=CV.date(t.dueDate);
+    const extra=CV.left(t,['id','title','notes','dueDate','priority','done','doneAt','contact','deal','created']);
+    if(CV.s(t.dueDate)&&!due)extra.dueDateRaw=t.dueDate;
+    return{id:t.id,title:CV.s(t.title)||'(no title)',notes:CV.n(t.notes),due_date:due,priority:CV.n(t.priority),done:!!t.done,done_at:CV.ts(t.doneAt),
+      deal_id:ix.deal(t.deal),deal_name:CV.n(t.deal),contact_id:ix.contact(t.contact),contact_name:CV.n(t.contact),extra,created_at:CV.ts(ensureStamp(t,'created'))};
+  },
+  activities(a,ix){
+    const when=CV.ts(ensureStamp(a,'ts'));
+    return{id:a.id,type:CV.n(a.type),title:CV.n(a.title),notes:CV.n(a.notes),deal_id:null,contact_id:ix.contact(a.contact),contact_name:CV.n(a.contact),
+      occurred_at:when,extra:CV.left(a,['id','type','title','notes','contact','ts']),created_at:when};
+  },
+  students(s,ix){
+    const first=CV.s(s.fname),last=CV.s(s.lname);const name=[first,last].filter(Boolean).join(' ')||CV.s(s.name);
+    return{id:s.id,name:CV.n(name),first_name:CV.n(first),last_name:CV.n(last),email:CV.n(s.email),phone:CV.n(s.phone),org:CV.n(s.orgName||s.org),
+      title:CV.n(s.title),country:CV.n(s.country),proboard_pin:CV.n(s.proboardPin),tags:CV.tags(s.tags),notes:CV.n(s.notes),
+      extra:CV.left(s,['id','fname','lname','name','email','phone','orgName','org','title','country','proboardPin','tags','notes','created']),created_at:CV.ts(ensureStamp(s,'created'))};
+  }
+};
+function settingRow(k,v){return{key:k,value:(v!==null&&typeof v==='object')?v:{value:v}};}
+function rowsFromDB(db){
+  const ix=cloudIndexes(db);const out={};CLOUD_TABLES.forEach(t=>out[t]=[]);
+  (db.contacts||[]).forEach(c=>{if(!c.id)c.id=uid();out.contacts.push(TO_ROW.contacts(c,ix));});
+  (db.deals||[]).forEach(d=>{if(!d.id)d.id=uid();out.deals.push(TO_ROW.deals(d,ix,false));});
+  (db.archive||[]).forEach(d=>{if(!d.id)d.id=uid();out.deals.push(TO_ROW.deals(d,ix,true));});
+  (db.tasks||[]).forEach(t=>{if(!t.id)t.id=uid();out.tasks.push(TO_ROW.tasks(t,ix));});
+  (db.activities||[]).forEach(a=>{if(!a.id)a.id=uid();out.activities.push(TO_ROW.activities(a,ix));});
+  (db.students||[]).forEach(s=>{if(!s.id)s.id=uid();out.students.push(TO_ROW.students(s,ix));});
+  Object.keys(db).forEach(k=>{if(!SETTING_SKIP.includes(k)&&db[k]!==undefined&&typeof db[k]!=='function')out.settings.push(settingRow(k,db[k]));});
+  return out;
+}
+
+// ---- database row -> app record ----
+const FROM_ROW={
+  contacts(r){const c={...CV.unraw(r.extra),id:r.id,fname:r.first_name||'',lname:r.last_name||'',org:r.org||'',phone:r.phone||'',email:r.email||'',tags:r.tags||[],notes:r.notes||'',created:CV.ms(r.created_at)};
+    if(!c.fname&&!c.lname&&r.name&&r.name!=='(no name)')c.fname=r.name;if(r.title)c.title=r.title;return c;},
+  deals(r){const x=r.extra||{};const d={...CV.unraw(x),id:r.id,title:r.title||'',org:r.org||'',contact:r.contact_name||'',value:Number(r.value)||0,board:r.board||'pipeline',stage:r.stage||'',
+    stageEnteredAt:CV.ms(r.stage_entered_at),wonHold:!!r.won_hold,probability:r.probability===null||r.probability===undefined?50:r.probability,
+    startDate:r.start_date||x.startDateRaw||'',closeDate:r.close_date||x.closeDateRaw||'',notes:r.notes||'',created:CV.ms(r.created_at)};
+    if(r.archived_at){d.archivedAt=CV.ms(r.archived_at);d.archiveYear=r.archive_year||new Date(r.archived_at).getFullYear();}return d;},
+  tasks(r){const x=r.extra||{};const t={...CV.unraw(x),id:r.id,title:r.title||'',dueDate:r.due_date||x.dueDateRaw||'',priority:r.priority||'medium',contact:r.contact_name||'',deal:r.deal_name||'',
+    notes:r.notes||'',done:!!r.done,created:CV.ms(r.created_at)};if(r.done_at)t.doneAt=CV.ms(r.done_at);return t;},
+  activities(r){return{...CV.unraw(r.extra),id:r.id,type:r.type||'note',title:r.title||'',contact:r.contact_name||'',notes:r.notes||'',ts:CV.ms(r.occurred_at)};},
+  students(r){return{...CV.unraw(r.extra),id:r.id,fname:r.first_name||'',lname:r.last_name||'',email:r.email||'',phone:r.phone||'',country:r.country||'',title:r.title||'',
+    orgName:r.org||'',proboardPin:r.proboard_pin||'',tags:r.tags||[],notes:r.notes||'',created:CV.ms(r.created_at)};}
+};
+function settingValue(v){if(v&&typeof v==='object'&&!Array.isArray(v)){const k=Object.keys(v);if(k.length===1&&k[0]==='value')return v.value;}return v;}
+const byNewest=f=>(a,b)=>(b[f]||0)-(a[f]||0);
+function snapKey(row){const r={...row};delete r.updated_at;return JSON.stringify(r);}
+function takeSnapshot(){
+  const rows=rowsFromDB(DB);CLOUD.snap={};
+  CLOUD_TABLES.forEach(t=>{const pk=CLOUD_PK[t]||'id';CLOUD.snap[t]={};rows[t].forEach(r=>{CLOUD.snap[t][r[pk]]=snapKey(r);});});
+}
+
+async function fetchTable(t){
+  const pk=CLOUD_PK[t]||'id';let all=[];
+  for(let from=0;;from+=1000){
+    const{data,error}=await sb.from(t).select('*').order(pk).range(from,from+999);
+    if(error)throw new Error(t+': '+error.message);
+    all=all.concat(data||[]);if(!data||data.length<1000)break;
+  }
+  return all;
+}
+async function cloudLoad(){
+  const got={};for(const t of CLOUD_TABLES)got[t]=await fetchTable(t);
+  const next=defaultData();
+  next.contacts=got.contacts.map(FROM_ROW.contacts).sort(byNewest('created'));
+  const allDeals=got.deals.map(FROM_ROW.deals);
+  next.deals=allDeals.filter(d=>!d.archivedAt).sort(byNewest('created'));
+  next.archive=allDeals.filter(d=>d.archivedAt).sort((a,b)=>(a.archivedAt||0)-(b.archivedAt||0));
+  next.tasks=got.tasks.map(FROM_ROW.tasks).sort(byNewest('created'));
+  next.activities=got.activities.map(FROM_ROW.activities).sort(byNewest('ts'));
+  next.students=got.students.map(FROM_ROW.students).sort(byNewest('created'));
+  got.settings.forEach(s=>{if(!SETTING_SKIP.includes(s.key))next[s.key]=settingValue(s.value);});
+  next.apiKey=localApiKey();
+  DB=next;takeSnapshot();
+}
+function localApiKey(){
+  try{
+    let k=localStorage.getItem(APIKEY_LOCAL)||'';
+    if(!k){const legacy=localStorage.getItem(STORAGE_KEY);if(legacy){k=(JSON.parse(legacy)||{}).apiKey||'';if(k)localStorage.setItem(APIKEY_LOCAL,k);}}
+    return k;
+  }catch(e){return '';}
+}
+
+// ---- saving ----
+function setCloudLabel(state,detail){
+  const el=document.getElementById('last-saved-label');if(!el)return;
+  if(state==='saving'){el.textContent='Saving…';el.style.color='';}
+  else if(state==='saved'){el.textContent='✓ Saved to cloud '+new Date().toLocaleTimeString();el.style.color='';}
+  else if(state==='error'){el.textContent='⚠ Not saved yet, retrying';el.style.color='#ff8a80';el.title=detail||'';}
+}
+function save(){
+  if(!CLOUD_READY)return;
+  try{if(DB.apiKey)localStorage.setItem(APIKEY_LOCAL,DB.apiKey);}catch(e){}
+  scheduleCloudPush();
+  scheduleSync();
+}
+function scheduleCloudPush(delay){clearTimeout(CLOUD.timer);setCloudLabel('saving');CLOUD.timer=setTimeout(()=>{CLOUD.timer=null;cloudPush();},delay===undefined?600:delay);}
+function cloudChanges(){
+  const rows=rowsFromDB(DB);const ch={};
+  CLOUD_TABLES.forEach(t=>{
+    const pk=CLOUD_PK[t]||'id';const snap=CLOUD.snap[t]||{};const seen={};
+    const ups=[];rows[t].forEach(r=>{const k=r[pk];if(seen[k])return;seen[k]=true;if(snapKey(r)!==snap[k])ups.push(r);});
+    // Activities are never deleted from the cloud: the app trims its log to
+    // the newest 500, and the full history should stay in the database.
+    const dels=t==='activities'?[]:Object.keys(snap).filter(k=>!seen[k]);
+    ch[t]={ups,dels};
+  });
+  return ch;
+}
+async function cloudPush(){
+  if(!CLOUD_READY)return;
+  if(CLOUD.pushing){CLOUD.again=true;return;}
+  CLOUD.pushing=true;
+  try{
+    const ch=cloudChanges();const now=new Date().toISOString();
+    for(const t of CLOUD_TABLES){
+      const pk=CLOUD_PK[t]||'id';const ups=ch[t].ups;
+      for(let i=0;i<ups.length;i+=200){
+        const batch=ups.slice(i,i+200);
+        const{error}=await sb.from(t).upsert(batch.map(r=>({...r,updated_at:now})),{onConflict:pk});
+        if(error)throw new Error(t+': '+error.message);
+        batch.forEach(r=>{CLOUD.snap[t][r[pk]]=snapKey(r);});
+      }
+    }
+    for(const t of CLOUD_TABLES.slice().reverse()){
+      const pk=CLOUD_PK[t]||'id';const dels=ch[t].dels;
+      for(let i=0;i<dels.length;i+=200){
+        const batch=dels.slice(i,i+200);
+        const{error}=await sb.from(t).delete().in(pk,batch);
+        if(error)throw new Error(t+' delete: '+error.message);
+        batch.forEach(k=>{delete CLOUD.snap[t][k];});
+      }
+    }
+    CLOUD.failed=false;CLOUD.lastPush=Date.now();setCloudLabel('saved');
+  }catch(e){
+    CLOUD.failed=true;setCloudLabel('error',e.message);console.error('Cloud save failed:',e);
+    if(!CLOUD.timer)CLOUD.timer=setTimeout(()=>{CLOUD.timer=null;cloudPush();},15000);
+  }finally{
+    CLOUD.pushing=false;
+    if(CLOUD.again){CLOUD.again=false;scheduleCloudPush(0);}
+  }
+}
+window.addEventListener('beforeunload',e=>{if(CLOUD.timer||CLOUD.pushing||CLOUD.failed){e.preventDefault();e.returnValue='';}});
+
+// ---- live updates from the other computer ----
+function applyRemote(table,payload){
+  const pk=CLOUD_PK[table]||'id';const snap=CLOUD.snap[table]||(CLOUD.snap[table]={});
+  if(payload.eventType==='DELETE'){
+    const id=payload.old&&payload.old[pk];if(!id||snap[id]===undefined)return false;
+    delete snap[id];
+    if(table==='settings'){delete DB[id];return true;}
+    if(table==='deals'){DB.deals=DB.deals.filter(d=>d.id!==id);DB.archive=(DB.archive||[]).filter(d=>d.id!==id);return true;}
+    DB[table]=(DB[table]||[]).filter(r=>r.id!==id);return true;
+  }
+  const row=payload.new;if(!row||row[pk]===undefined)return false;
+  if(table==='settings'){
+    if(SETTING_SKIP.includes(row.key))return false;
+    const sk=snapKey(settingRow(row.key,settingValue(row.value)));if(sk===snap[row.key])return false;
+    DB[row.key]=settingValue(row.value);snap[row.key]=sk;return true;
+  }
+  const rec=FROM_ROW[table](row);
+  const sk=snapKey(TO_ROW[table](rec,cloudIndexes(DB),!!rec.archivedAt));
+  if(sk===snap[rec.id])return false; // our own save coming back
+  const put=(list,newestField)=>{const i=list.findIndex(r=>r.id===rec.id);if(i>=0)list[i]=rec;else list.unshift(rec);return list;};
+  if(table==='deals'){
+    DB.deals=DB.deals.filter(d=>d.id!==rec.id);DB.archive=(DB.archive||[]).filter(d=>d.id!==rec.id);
+    if(rec.archivedAt)DB.archive.push(rec);else DB.deals.unshift(rec);
+  }else{DB[table]=put(DB[table]||[]);}
+  snap[rec.id]=sk;return true;
+}
+let remoteRenderTimer=null;
+function refreshAfterRemote(){
+  clearTimeout(remoteRenderTimer);
+  remoteRenderTimer=setTimeout(()=>{
+    try{
+      if(currentView==='contacts')renderContacts();
+      else if(currentView==='students')renderStudents();
+      else navigate(currentView);
+      updateBadges();updateStudentBadge();
+    }catch(e){console.error(e);}
+  },250);
+}
+function onRemoteChange(table,payload){try{if(applyRemote(table,payload))refreshAfterRemote();}catch(e){console.error('Live update error:',e);}}
+function subscribeRealtime(){
+  const ch=sb.channel('command-center-data');
+  CLOUD_TABLES.forEach(t=>ch.on('postgres_changes',{event:'*',schema:'public',table:t},p=>onRemoteChange(t,p)));
+  ch.subscribe();
+}
+// Safety net: if the app sat in a background tab (or the laptop slept),
+// reload from the cloud on return so nothing missed is left out.
+document.addEventListener('visibilitychange',async()=>{
+  if(!CLOUD_READY)return;
+  if(document.hidden){CLOUD.hiddenAt=Date.now();return;}
+  if(!CLOUD.hiddenAt||Date.now()-CLOUD.hiddenAt<5*60*1000)return;
+  if(CLOUD.timer||CLOUD.pushing||CLOUD.failed)return;
+  try{const key=DB.apiKey;await cloudLoad();DB.apiKey=key||DB.apiKey;refreshAfterRemote();}catch(e){console.error('Refresh failed:',e);}
+});
+
+// ---- sign-in and start-up ----
+function showGate(msg,withForm,isError){
+  const g=document.getElementById('cloud-gate');if(!g)return;
+  g.style.display='flex';
+  const m=document.getElementById('cg-msg');m.textContent=msg;m.style.color=isError?'#c0392b':'#5b6675';
+  document.getElementById('cg-form').style.display=withForm?'block':'none';
+  document.getElementById('cg-retry').style.display=(!withForm&&isError)?'inline-block':'none';
+}
+function hideGate(){const g=document.getElementById('cloud-gate');if(g)g.style.display='none';}
+async function cloudSignIn(e){
+  if(e)e.preventDefault();
+  const btn=document.getElementById('cg-btn');btn.disabled=true;
+  document.getElementById('cg-msg').textContent='Signing in…';
+  const{data,error}=await sb.auth.signInWithPassword({email:document.getElementById('cg-email').value.trim(),password:document.getElementById('cg-pass').value});
+  btn.disabled=false;
+  if(error){showGate(error.message==='Invalid login credentials'?'That email and password didn\'t match. Try again.':error.message,true,true);return false;}
+  document.getElementById('cg-pass').value='';
+  await startApp(data.user);return false;
+}
+async function cloudSignOut(){
+  if(CLOUD.timer||CLOUD.pushing){toast('Still saving, try again in a moment.',true);return;}
+  if(!confirm('Sign out of the Command Center on this computer?'))return;
+  await sb.auth.signOut();location.reload();
+}
+async function startApp(user){
+  CLOUD.user=user;
+  showGate('Loading your data…',false,false);
+  try{await cloudLoad();}
+  catch(e){showGate('Couldn\'t load your data: '+e.message,false,true);return;}
+  migrateStagesAndTimestamps();
+  CLOUD_READY=true;
+  runArchivalSweep(true);
+  loadAcct();
+  seedWhatsAppUpgradeTask();
+  renderCommandCenter();renderDashboard();renderAIHistory();
+  updateBadges();updateStudentBadge();updateAcctAlertBadge();
+  if(DB.apiKey)document.getElementById('api-key-status').textContent='API key saved ✓';
+  const who=document.getElementById('cloud-user-label');if(who)who.innerHTML=(user&&user.email?user.email:'Signed in')+' · <a href="#" onclick="cloudSignOut();return false;" style="color:inherit;text-decoration:underline;">Sign out</a>';
+  subscribeRealtime();
+  hideGate();
+  if(cloudChanges&&Object.values(cloudChanges()).some(c=>c.ups.length||c.dels.length))scheduleCloudPush(0);
+  else setCloudLabel('saved');
+}
+async function boot(){
+  if(!window.supabase){showGate('Couldn\'t reach the database library. Check your internet connection, then reload.',false,true);return;}
+  sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,storageKey:'boes_cc_auth'}});
+  showGate('Connecting…',false,false);
+  const{data}=await sb.auth.getSession();
+  if(data&&data.session)await startApp(data.session.user);
+  else showGate('Sign in to continue.',true,false);
+}
+
 
 // Correct v3.1 migration (matches real v3.1 structure)
 function migrateV31(v31){
@@ -1874,7 +2202,7 @@ async function syncToSheets(manual){
 loadSyncCfg();
 // ══════════ END GOOGLE SHEETS SYNC ══════════
 function importData(){document.getElementById('import-file-input').click();}
-function handleImport(e){const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=ev=>{try{const imported=JSON.parse(ev.target.result);if(confirm('Import data? This will replace current data.\nContacts: '+(imported.contacts||[]).length+' | Projects: '+(imported.deals||[]).length+' | Tasks: '+(imported.tasks||[]).length)){DB={...defaultData(),...imported};save();renderDashboard();updateBadges();toast('✅ Data imported successfully!');}}catch(err){toast('Import error: '+err.message,true);}};reader.readAsText(file);e.target.value='';}
+function handleImport(e){const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=ev=>{try{const imported=JSON.parse(ev.target.result);if(confirm('Replace ALL Command Center data in the cloud, for everyone, with this file?\nAnything not in the file will be deleted.\n\nContacts: '+(imported.contacts||[]).length+' | Projects: '+(imported.deals||[]).length+' | Tasks: '+(imported.tasks||[]).length)){const keepKey=DB.apiKey;DB={...defaultData(),...imported};DB.apiKey=imported.apiKey||keepKey;save();renderDashboard();updateBadges();toast('✅ Data imported successfully!');}}catch(err){toast('Import error: '+err.message,true);}};reader.readAsText(file);e.target.value='';}
 
 // ─── STUDENTS ───
 const COURSE_NAMES={FO1:'Fire Officer I',FO2:'Fire Officer II',FO3:'Fire Officer III',FO4:'Fire Officer IV',FI1:'Fire Instructor I',FI2:'Fire Instructor II',FI3:'Fire Instructor III',FF1_2:'Firefighter I & II',ARFF:'Airport Firefighter (ARFF)',CFI:'Certified Fire Inspector',DO:'Driver Operator',HAZMAT:'Hazmat Awareness'};
@@ -2788,16 +3116,9 @@ function updateAcctAlertBadge(){
 }
 
 // ─── INIT ───
-load();
-loadAcct();
-seedWhatsAppUpgradeTask();
-renderCommandCenter();
-renderDashboard();
-renderAIHistory();
-updateBadges();
-updateStudentBadge();
-updateAcctAlertBadge();
-if(DB.apiKey)document.getElementById('api-key-status').textContent='API key saved ✓';
+// Data now comes from Supabase after sign-in (see CLOUD DATA above).
+// load() is kept only for reference; it reads the old browser-only copy.
+boot();
 </script>
   <script src="rfp-sync.js"></script>
 </body>
