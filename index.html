@@ -590,16 +590,26 @@
     <!-- FORECAST -->
     <div id="view-acct-forecast" class="view">
       <div class="section-title">📈 90-Day Financial Forecast</div>
+      <div class="toolbar" style="font-size:15px;">
+        <span>Clients usually pay</span>
+        <input class="form-control" id="fc-terms" type="number" min="0" max="365" style="width:80px;" onchange="fcSetTerms(this.value)">
+        <span>days after a job ends.</span>
+        <span style="color:var(--text-muted);font-size:14px;">Used to estimate when contracted and pipeline work pays, until a job has its own payment schedule.</span>
+      </div>
       <div class="kpi-grid" id="forecast-kpis"></div>
       <div class="dash-grid" style="margin-bottom:20px;">
         <div class="card">
           <div class="card-header"><h3>💰 Expected Income — Next 90 Days</h3></div>
-          <div class="card-body" style="padding:0;"><table class="data-table"><thead><tr><th>Job</th><th>Payment</th><th>Expected Date</th><th>Amount</th><th>Status</th></tr></thead><tbody id="forecast-income-tbody"></tbody></table></div>
+          <div class="card-body" style="padding:0;"><table class="data-table"><thead><tr><th>Job / Project</th><th>Payment</th><th>Expected</th><th>Amount</th><th>Source</th></tr></thead><tbody id="forecast-income-tbody"></tbody></table></div>
         </div>
         <div class="card">
           <div class="card-header"><h3>📤 Expected Expenses — Next 90 Days</h3></div>
           <div class="card-body" style="padding:0;"><table class="data-table"><thead><tr><th>Description</th><th>Type</th><th>Job / Category</th><th>Expected Date</th><th>Amount</th></tr></thead><tbody id="forecast-expense-tbody"></tbody></table></div>
         </div>
+      </div>
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-header"><h3>🔮 Possible Income — Pipeline (weighted)</h3><span style="font-size:14px;color:var(--text-muted);">value × win %, not counted in the net forecast</span></div>
+        <div class="card-body" style="padding:0;overflow-x:auto;"><table class="data-table"><thead><tr><th>Project</th><th>Stage</th><th>Value</th><th>Win %</th><th>Weighted</th><th>Expected</th></tr></thead><tbody id="forecast-pipeline-tbody"></tbody></table></div>
       </div>
       <div class="card" style="margin-bottom:20px;">
         <div class="card-header"><h3>📊 90-Day Cash Flow Timeline</h3><span style="font-size:14px;color:var(--text-muted);">Running balance projection</span></div>
@@ -3176,126 +3186,101 @@ function renderOverheadView(){
 }
 
 // ── FORECAST / DASHBOARD ──
-function renderForecast(){
-  const t=todayStr();const t90=today90();
-
-  // ── INCOME: pending/expected payments in next 90 days ──
-  let incomeItems=[];
+// ─── FORECAST (rebuilt Sept 27) ───
+// Works from what is already in the app, no extra typing needed:
+//  • Contracted income: scheduled job payments; any unscheduled balance on a
+//    job, or a Production project with no job yet, is estimated as one
+//    payment due [payment terms] days after its end date.
+//  • Possible income: open Pipeline projects, value × win %, expected
+//    [payment terms] days after their close date. Shown separately and
+//    never added into the contracted numbers.
+//  • Outflow: every recurring overhead occurrence (monthly, quarterly,
+//    annual) plus one-time items and any future-dated expenses.
+function fcTerms(){const n=parseInt(DB.forecastTerms,10);return isFinite(n)&&n>=0&&n<=365?n:30;}
+function fcSetTerms(v){const n=parseInt(v,10);if(!isFinite(n)||n<0||n>365){toast('Enter a number of days between 0 and 365.',true);return;}DB.forecastTerms=n;save();renderForecast();try{if(currentView==='acct-dashboard')renderCompanyDashboard();}catch(e){}}
+function fcAddMonths(d,n){const [y,m,dd]=d.split('-').map(Number);const t=new Date(Date.UTC(y,m-1+n,1));const last=new Date(Date.UTC(t.getUTCFullYear(),t.getUTCMonth()+1,0)).getUTCDate();return t.getUTCFullYear()+'-'+String(t.getUTCMonth()+1).padStart(2,'0')+'-'+String(Math.min(dd,last)).padStart(2,'0');}
+function fcBuild(from,to){
+  const today=todayStr();const terms=fcTerms();const inWin=d=>d>=from&&d<=to;
+  const income=[],overdue=[],possible=[],outflow=[];
+  // contracted: accounting jobs
   (ACCT.jobs||[]).forEach(j=>{
-    (j.payments||[]).forEach(p=>{
-      if(p.status!=='Received'&&p.date&&p.date>=t&&p.date<=t90){
-        incomeItems.push({label:j.org+' — '+j.project,type:p.type,date:p.date,amount:p.amount,status:p.status,jobId:j.id});
-      }
-    });
+    const label=(j.org||'')+' — '+(j.project||'');const pays=j.payments||[];
+    pays.forEach(p=>{if(p.status==='Received'||!(rNum(p.amount)>0))return;
+      const item={label,type:p.type||'Payment',date:p.date||'',amount:rNum(p.amount),source:'Scheduled',status:p.status||'Expected',jobId:j.id};
+      if(p.date&&p.date<today)overdue.push(item);else if(p.date&&inWin(p.date))income.push(item);});
+    const wo=(j.writeOffs||[]).reduce((s,w)=>s+rNum(w.amount),0);
+    const rest=rNum(j.value)-pays.reduce((s,p)=>s+rNum(p.amount),0)-wo;
+    if(rest>0.5){const d=addDays(j.end||j.start||today,terms);const item={label,type:pays.length?'Unscheduled balance':'Full contract',date:d,amount:rest,source:'Estimated',status:'Estimated',jobId:j.id};
+      if(d<today)overdue.push(item);else if(inWin(d))income.push(item);}
   });
-  incomeItems.sort((a,b)=>a.date.localeCompare(b.date));
-
-  // ── EXPENSES: logged project expenses with date in 90 days ──
-  let expItems=[];
-  (ACCT.expenses||[]).forEach(e=>{
-    if(e.date&&e.date>=t&&e.date<=t90){
-      const job=e.jobId?(ACCT.jobs||[]).find(j=>j.id===e.jobId):null;
-      expItems.push({label:e.desc,type:e.type,jobLabel:job?(job.org+' — '+job.project):'—',date:e.date,amount:e.amount});
-    }
+  // contracted: Production projects that don't have an accounting job yet
+  (DB.deals||[]).filter(d=>d.board==='production'&&d.stage!=='Paid/Closed'&&!fdHasJob(d)).forEach(d=>{
+    const dt=addDays(d.closeDate||d.startDate||today,terms);
+    const item={label:(d.org||'')+' — '+(d.title||''),type:'Contract ('+(d.stage||'Production')+')',date:dt,amount:rNum(d.value),source:'Production project',status:'Estimated',dealId:d.id};
+    if(!(item.amount>0))return;if(dt<today)overdue.push(item);else if(inWin(dt))income.push(item);
   });
-
-  // ── OVERHEAD: items due in 90 days ──
-  let ohItems=[];
-  (ACCT.overhead||[]).filter(o=>o.status!=='paid'&&o.due&&o.due>=t&&o.due<=t90).forEach(o=>{
-    expItems.push({label:o.name,type:'Overhead',jobLabel:o.category,date:o.due,amount:o.amount});
-    ohItems.push(o);
+  // possible: open Pipeline
+  (DB.deals||[]).filter(d=>d.board==='pipeline'&&d.stage!=='Closed Won'&&d.stage!=='Closed Lost').forEach(d=>{
+    const prob=Math.min(100,Math.max(0,parseInt(d.probability,10)||0));const stale=!d.closeDate||d.closeDate<today;
+    const dt=addDays(stale?today:d.closeDate,terms);
+    if(inWin(dt)&&rNum(d.value)>0&&prob>0)possible.push({label:(d.org||'')+' — '+(d.title||''),stage:d.stage||'',value:rNum(d.value),prob,amount:rNum(d.value)*prob/100,date:dt,stale,dealId:d.id});
   });
-  expItems.sort((a,b)=>a.date.localeCompare(b.date));
-
-  const totalIncome90=incomeItems.reduce((s,i)=>s+(i.amount||0),0);
-  const totalExp90=expItems.reduce((s,e)=>s+(e.amount||0),0);
-  const netForecast=totalIncome90-totalExp90;
-  const activeJobs=(ACCT.jobs||[]).filter(j=>getJobStatus(j)==='Active'||getJobStatus(j)==='Partial').length;
-  const overduePayments=(ACCT.jobs||[]).flatMap(j=>(j.payments||[]).filter(p=>p.status!=='Received'&&p.date&&p.date<t)).length;
-
+  // outflow: overhead occurrences
+  (ACCT.overhead||[]).forEach(o=>{
+    if(o.status==='paused'||!(rNum(o.amount)>0))return;
+    const step={monthly:1,quarterly:3,annual:12}[o.frequency];
+    if(!step){if(o.status!=='paid'&&o.due&&inWin(o.due))outflow.push({label:o.name,type:'Overhead',jobLabel:o.category||'',date:o.due,amount:rNum(o.amount),frequency:o.frequency||'one-time',vendor:o.vendor||''});return;}
+    let d=o.due||from.slice(0,8)+'01';let guard=0;
+    while(d>from&&guard++<600)d=fcAddMonths(d,-step);
+    while(d<from&&guard++<1200)d=fcAddMonths(d,step);
+    while(d<=to&&guard++<1800){if(!(o.status==='paid'&&d===o.due))outflow.push({label:o.name,type:'Overhead',jobLabel:o.category||'',date:d,amount:rNum(o.amount),frequency:o.frequency,vendor:o.vendor||''});d=fcAddMonths(d,step);}
+  });
+  // outflow: expenses already entered with a future date
+  (ACCT.expenses||[]).forEach(e=>{if(e.date&&e.date>=today&&inWin(e.date)){const job=e.jobId?(ACCT.jobs||[]).find(j=>j.id===e.jobId):null;outflow.push({label:e.desc,type:e.type||'Expense',jobLabel:job?(job.org+' — '+job.project):'—',date:e.date,amount:rNum(e.amount)});}});
+  const by=(a,b)=>a.date.localeCompare(b.date);[income,overdue,possible,outflow].forEach(l=>l.sort(by));
+  const sum=l=>l.reduce((s,x)=>s+x.amount,0);
+  return{income,overdue,possible,outflow,totIn:sum(income),totOver:sum(overdue),totPossible:sum(possible),totOut:sum(outflow),terms};
+}
+function fcDue(date,t){const days=daysBetween(t,date);const u=days<=7?'color:var(--danger);font-weight:700;':days<=30?'color:var(--warning);font-weight:600;':'';return '<span style="'+u+'">'+formatDate(date)+'</span>'+(days>=0&&days<=14?' <span style="font-size:12px;color:var(--warning);">('+days+'d)</span>':'');}
+function renderForecast(){
+  const t=todayStr();const t90=today90();const F=fcBuild(t,t90);
+  const termsEl=document.getElementById('fc-terms');if(termsEl&&document.activeElement!==termsEl)termsEl.value=F.terms;
+  const net=F.totIn-F.totOut;
   const kpiEl=document.getElementById('forecast-kpis');
   if(kpiEl)kpiEl.innerHTML=
-    '<div class="kpi-card green"><div class="kpi-label">Expected Income (90d)</div><div class="kpi-value" style="color:var(--green-dark);">'+fmtAmt(totalIncome90)+'</div><div class="kpi-sub">'+incomeItems.length+' payments</div></div>'+
-    '<div class="kpi-card danger"><div class="kpi-label">Expected Outflow (90d)</div><div class="kpi-value" style="color:var(--danger);">'+fmtAmt(totalExp90)+'</div><div class="kpi-sub">'+expItems.length+' items</div></div>'+
-    '<div class="kpi-card '+(netForecast>=0?'green':'danger')+'"><div class="kpi-label">Net Forecast (90d)</div><div class="kpi-value" style="color:'+(netForecast>=0?'var(--green-dark)':'var(--danger)')+';">'+fmtAmt(netForecast)+'</div></div>'+
-    '<div class="kpi-card '+(overduePayments>0?'danger':'')+'"><div class="kpi-label">Overdue Payments</div><div class="kpi-value" style="color:'+(overduePayments>0?'var(--danger)':'var(--text-muted)')+';">'+overduePayments+'</div><div class="kpi-sub">'+activeJobs+' active jobs</div></div>';
-
-  // Income table
+    '<div class="kpi-card green"><div class="kpi-label">Contracted Income (90d)</div><div class="kpi-value" style="color:var(--green-dark);">'+rMoney(F.totIn)+'</div><div class="kpi-sub">'+F.income.length+' payment'+(F.income.length===1?'':'s')+'</div></div>'+
+    '<div class="kpi-card danger"><div class="kpi-label">Expected Outflow (90d)</div><div class="kpi-value" style="color:var(--danger);">'+rMoney(F.totOut)+'</div><div class="kpi-sub">'+F.outflow.length+' item'+(F.outflow.length===1?'':'s')+'</div></div>'+
+    '<div class="kpi-card '+(net>=0?'green':'danger')+'"><div class="kpi-label">Net Forecast (90d)</div><div class="kpi-value" style="color:'+(net>=0?'var(--green-dark)':'var(--danger)')+';">'+rMoney(net)+'</div><div class="kpi-sub">contracted only</div></div>'+
+    '<div class="kpi-card"><div class="kpi-label">Possible from Pipeline (90d)</div><div class="kpi-value" style="color:var(--navy);">'+rMoney(F.totPossible)+'</div><div class="kpi-sub">weighted by win %, not in net</div></div>'+
+    '<div class="kpi-card '+(F.totOver>0?'danger':'')+'"><div class="kpi-label">Overdue</div><div class="kpi-value" style="color:'+(F.totOver>0?'var(--danger)':'var(--text-muted)')+';">'+rMoney(F.totOver)+'</div><div class="kpi-sub">'+F.overdue.length+' item'+(F.overdue.length===1?'':'s')+' past due</div></div>';
+  const srcTag=s=>s==='Scheduled'?'<span class="tag green">Scheduled</span>':'<span class="tag" title="Estimated: '+F.terms+' days after the end date">'+rEsc(s)+'</span>';
   const incTbody=document.getElementById('forecast-income-tbody');
-  if(incTbody)incTbody.innerHTML=incomeItems.length?incomeItems.map(i=>{
-    const days=daysBetween(t,i.date);
-    const urgency=days<=7?'color:var(--danger);font-weight:700;':days<=30?'color:var(--warning);font-weight:600;':'';
-    return '<tr>'+
-      '<td style="font-weight:500;">'+i.label+'</td>'+
-      '<td><span class="tag">'+i.type+'</span></td>'+
-      '<td><span style="'+urgency+'">'+i.date+'</span>'+(days<=14?' <span style="font-size:12px;color:var(--warning);">('+days+'d)</span>':'')+'</td>'+
-      '<td style="color:var(--green-dark);font-weight:700;">'+fmtAmt(i.amount)+'</td>'+
-      '<td><span class="tag '+(i.status==='Pending'?'':' ')+'">'+i.status+'</span></td>'+
-    '</tr>';
-  }).join(''):'<tr><td colspan="5"><div class="empty-state" style="padding:20px;"><div class="empty-icon">💰</div><p>No expected income in the next 90 days.<br><small>Add payment schedule entries to jobs with future expected dates.</small></p></div></td></tr>';
-
-  // Expense table
+  if(incTbody)incTbody.innerHTML=(F.overdue.length?F.overdue.map(i=>'<tr style="background:rgba(229,57,53,0.05);"><td style="font-weight:500;">'+rEsc(i.label)+'</td><td><span class="tag">'+rEsc(i.type)+'</span></td><td><span style="color:var(--danger);font-weight:700;">'+(i.date?formatDate(i.date)+' · '+daysBetween(i.date,t)+'d late':'overdue')+'</span></td><td style="color:var(--danger);font-weight:700;">'+rMoney(i.amount)+'</td><td><span class="tag" style="background:#fdecea;color:var(--danger);">Overdue</span></td></tr>').join(''):'')+
+    (F.income.length?F.income.map(i=>'<tr><td style="font-weight:500;">'+rEsc(i.label)+'</td><td><span class="tag">'+rEsc(i.type)+'</span></td><td>'+fcDue(i.date,t)+'</td><td style="color:var(--green-dark);font-weight:700;">'+rMoney(i.amount)+'</td><td>'+srcTag(i.source)+'</td></tr>').join('')
+    :(F.overdue.length?'':'<tr><td colspan="5"><div class="empty-state" style="padding:20px;"><div class="empty-icon">💰</div><p>No contracted income expected in the next 90 days.</p></div></td></tr>'));
   const expTbody=document.getElementById('forecast-expense-tbody');
-  if(expTbody)expTbody.innerHTML=expItems.length?expItems.map(e=>{
-    const days=daysBetween(t,e.date);
-    const urgency=days<=7?'color:var(--danger);font-weight:700;':days<=30?'color:var(--warning);font-weight:600;':'';
-    return '<tr>'+
-      '<td style="font-weight:500;">'+e.label+'</td>'+
-      '<td><span class="tag">'+e.type+'</span></td>'+
-      '<td style="font-size:14px;color:var(--text-muted);">'+e.jobLabel+'</td>'+
-      '<td><span style="'+urgency+'">'+e.date+'</span>'+(days<=14?' <span style="font-size:12px;color:var(--warning);">('+days+'d)</span>':'')+'</td>'+
-      '<td style="color:var(--danger);font-weight:700;">'+fmtAmt(e.amount)+'</td>'+
-    '</tr>';
-  }).join(''):'<tr><td colspan="5"><div class="empty-state" style="padding:20px;"><div class="empty-icon">📤</div><p>No expected expenses in the next 90 days.</p></div></td></tr>';
-
-  // Timeline — monthly bars for next 3 months
+  if(expTbody)expTbody.innerHTML=F.outflow.length?F.outflow.map(e=>'<tr><td style="font-weight:500;">'+rEsc(e.label)+'</td><td><span class="tag">'+rEsc(e.type)+'</span></td><td style="font-size:14px;color:var(--text-muted);">'+rEsc(e.jobLabel)+'</td><td>'+fcDue(e.date,t)+'</td><td style="color:var(--danger);font-weight:700;">'+rMoney(e.amount)+'</td></tr>').join('')
+    :'<tr><td colspan="5"><div class="empty-state" style="padding:20px;"><div class="empty-icon">📤</div><p>No expected expenses in the next 90 days.<br><small>Add your recurring bills under Overhead and they will appear here every month.</small></p></div></td></tr>';
+  const pipeTbody=document.getElementById('forecast-pipeline-tbody');
+  if(pipeTbody)pipeTbody.innerHTML=F.possible.length?F.possible.map(p=>'<tr><td style="font-weight:500;">'+rEsc(p.label)+'</td><td><span class="tag">'+rEsc(p.stage)+'</span></td><td>'+rMoney(p.value)+'</td><td>'+p.prob+'%</td><td style="color:var(--navy);font-weight:700;">'+rMoney(p.amount)+'</td><td>'+fcDue(p.date,t)+(p.stale?' <span style="font-size:12px;color:var(--text-muted);" title="Close date missing or already passed">(close date passed)</span>':'')+'</td></tr>').join('')
+    :'<tr><td colspan="6"><div class="empty-state" style="padding:20px;"><div class="empty-icon">🔮</div><p>No open Pipeline projects expected to pay in the next 90 days.</p></div></td></tr>';
   const timelineEl=document.getElementById('forecast-timeline');
   if(timelineEl){
     const months=[];
-    for(let m=0;m<3;m++){
-      const d=new Date();d.setDate(1);d.setMonth(d.getMonth()+m);
-      const ym=d.toISOString().slice(0,7);
-      const label=d.toLocaleDateString('en-US',{month:'short',year:'numeric'});
-      const inc=incomeItems.filter(i=>i.date.startsWith(ym)).reduce((s,i)=>s+(i.amount||0),0);
-      const exp=expItems.filter(e=>e.date.startsWith(ym)).reduce((s,e)=>s+(e.amount||0),0);
-      months.push({label,inc,exp,net:inc-exp});
-    }
-    const maxVal=Math.max(...months.map(m=>Math.max(m.inc,m.exp)),1);
-    timelineEl.innerHTML='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;">'+
-      months.map(m=>'<div style="text-align:center;">'+
-        '<div style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:10px;">'+m.label+'</div>'+
-        '<div style="display:flex;gap:6px;align-items:flex-end;justify-content:center;height:80px;">'+
-          '<div style="display:flex;flex-direction:column;align-items:center;gap:3px;">'+
-            '<div style="font-size:12px;color:var(--green-dark);">'+fmtAmt(m.inc)+'</div>'+
-            '<div style="width:36px;background:var(--green);border-radius:3px 3px 0 0;height:'+Math.round((m.inc/maxVal)*70)+'px;min-height:4px;"></div>'+
-            '<div style="font-size:12px;color:var(--text-muted);">In</div>'+
-          '</div>'+
-          '<div style="display:flex;flex-direction:column;align-items:center;gap:3px;">'+
-            '<div style="font-size:12px;color:var(--danger);">'+fmtAmt(m.exp)+'</div>'+
-            '<div style="width:36px;background:var(--danger);border-radius:3px 3px 0 0;height:'+Math.round((m.exp/maxVal)*70)+'px;min-height:4px;opacity:0.75;"></div>'+
-            '<div style="font-size:12px;color:var(--text-muted);">Out</div>'+
-          '</div>'+
-        '</div>'+
-        '<div style="margin-top:10px;padding:6px 8px;border-radius:var(--radius-sm);background:'+(m.net>=0?'rgba(102,204,51,0.1)':'rgba(229,57,53,0.1)')+';font-size:14px;font-weight:700;color:'+(m.net>=0?'var(--green-dark)':'var(--danger)')+';">'+
-          (m.net>=0?'+':'')+fmtAmt(m.net)+
-        '</div>'+
-      '</div>').join('')+
-    '</div>';
+    for(let m=0;m<3;m++){const ym=fcAddMonths(t.slice(0,8)+'01',m).slice(0,7);const [yy,mm]=ym.split('-').map(Number);
+      const inc=F.income.filter(i=>i.date.startsWith(ym)).reduce((s,i)=>s+i.amount,0);const exp=F.outflow.filter(e=>e.date.startsWith(ym)).reduce((s,e)=>s+e.amount,0);
+      const pos=F.possible.filter(p=>p.date.startsWith(ym)).reduce((s,p)=>s+p.amount,0);
+      months.push({label:R_MONTHS[mm-1]+' '+yy,inc,exp,pos,net:inc-exp});}
+    const maxVal=Math.max(...months.map(m=>Math.max(m.inc,m.exp,m.pos)),1);
+    const bar=(v,c,op,lbl,col)=>'<div style="display:flex;flex-direction:column;align-items:center;gap:3px;"><div style="font-size:12px;color:'+col+';">'+rMoney(v)+'</div><div style="width:34px;background:'+c+';border-radius:3px 3px 0 0;height:'+Math.round((v/maxVal)*70)+'px;min-height:4px;opacity:'+op+';"></div><div style="font-size:12px;color:var(--text-muted);">'+lbl+'</div></div>';
+    timelineEl.innerHTML='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;">'+months.map(m=>'<div style="text-align:center;"><div style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:10px;">'+m.label+'</div>'+
+      '<div style="display:flex;gap:6px;align-items:flex-end;justify-content:center;height:80px;">'+bar(m.inc,'var(--green)',1,'In','var(--green-dark)')+bar(m.exp,'var(--danger)',0.75,'Out','var(--danger)')+bar(m.pos,'var(--navy)',0.35,'Possible','var(--navy)')+'</div>'+
+      '<div style="margin-top:10px;padding:6px 8px;border-radius:var(--radius-sm);background:'+(m.net>=0?'rgba(102,204,51,0.1)':'rgba(229,57,53,0.1)')+';font-size:14px;font-weight:700;color:'+(m.net>=0?'var(--green-dark)':'var(--danger)')+';">'+(m.net>=0?'+':'')+rMoney(m.net)+'</div></div>').join('')+'</div>';
   }
-
-  // Overhead due table
   const ohTbody=document.getElementById('forecast-overhead-tbody');
-  if(ohTbody)ohTbody.innerHTML=ohItems.length?ohItems.map(o=>{
-    const days=daysBetween(t,o.due);
-    const urgency=days<=7?'color:var(--danger);font-weight:700;':days<=30?'color:var(--warning);font-weight:600;':'';
-    return '<tr>'+
-      '<td style="font-weight:500;">'+o.name+(o.vendor?'<div style="font-size:13px;color:var(--text-muted);">'+o.vendor+'</div>':'')+'</td>'+
-      '<td><span class="tag">'+o.category+'</span></td>'+
-      '<td style="color:var(--text-muted);text-transform:capitalize;">'+o.frequency+'</td>'+
-      '<td><span style="'+urgency+'">'+o.due+'</span>'+(days<=14?' <span style="font-size:12px;color:var(--warning);">('+days+'d)</span>':'')+'</td>'+
-      '<td style="color:var(--danger);font-weight:700;">'+fmtAmt(o.amount)+'</td>'+
-    '</tr>';
-  }).join(''):'<tr><td colspan="5"><div class="empty-state" style="padding:20px;"><div class="empty-icon">🏢</div><p>No overhead due in the next 90 days.</p></div></td></tr>';
+  const oh=F.outflow.filter(e=>e.type==='Overhead');
+  if(ohTbody)ohTbody.innerHTML=oh.length?oh.map(o=>'<tr><td style="font-weight:500;">'+rEsc(o.label)+(o.vendor?'<div style="font-size:13px;color:var(--text-muted);">'+rEsc(o.vendor)+'</div>':'')+'</td><td><span class="tag">'+rEsc(o.jobLabel)+'</span></td><td style="color:var(--text-muted);text-transform:capitalize;">'+rEsc(o.frequency)+'</td><td>'+fcDue(o.date,t)+'</td><td style="color:var(--danger);font-weight:700;">'+rMoney(o.amount)+'</td></tr>').join('')
+    :'<tr><td colspan="5"><div class="empty-state" style="padding:20px;"><div class="empty-icon">🏢</div><p>No overhead due in the next 90 days.</p></div></td></tr>';
 }
 
 // ── ALERT BADGE ──
@@ -3411,13 +3396,12 @@ function renderCompanyDashboard(){
   document.getElementById('cd-aging').innerHTML=owed?ag.filter(x=>x.v>0).map((x,i)=>'<div style="margin-bottom:12px;"><div style="display:flex;justify-content:space-between;"><span>'+x.k+'</span><strong>'+rMoney(x.v)+'</strong></div>'+rBar(x.v,agMax,/late/.test(x.k)?'var(--danger)':'var(--navy)')+'</div>').join('')+
     '<div style="font-size:13px;color:var(--text-muted);">Largest late items: '+(open.filter(i=>i.late>0).sort((a,b)=>b.amount-a.amount).slice(0,3).map(i=>rEsc(i.job.org)+' '+rMoney(i.amount)+' ('+i.late+'d)').join(' · ')||'none')+'</div>'
     :'<div style="color:var(--text-muted);">Nothing owed right now.</div>';
-  // cash forecast
+  // cash forecast (same numbers as the Forecast page)
   const t0=todayStr();let html='';
-  const overdueAmt=open.filter(i=>i.late!==null&&i.late>0).reduce((s,i)=>s+i.amount,0);
-  [30,60,90].forEach(d=>{const end=addDays(t0,d);const inn=open.filter(i=>i.date&&i.date>=t0&&i.date<=end).reduce((s,i)=>s+i.amount,0);
-    const out=rOverheadFor(addDays(t0,1),end);const n=inn-out;
-    html+='<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span>Next '+d+' days</span><span>'+rMoney(inn)+' in · '+rMoney(out)+' out · <strong style="color:'+(n>=0?'var(--green-dark)':'var(--danger)')+'">'+rMoney(n)+'</strong></span></div>';});
-  html+='<div style="font-size:13px;color:var(--text-muted);margin-top:8px;">Plus '+rMoney(overdueAmt)+' already overdue that could come in any time.</div>';
+  [30,60,90].forEach(d=>{const F=fcBuild(t0,addDays(t0,d));const n=F.totIn-F.totOut;
+    html+='<div style="padding:8px 0;border-bottom:1px solid var(--border);"><div style="display:flex;justify-content:space-between;"><span>Next '+d+' days</span><span>'+rMoney(F.totIn)+' in · '+rMoney(F.totOut)+' out · <strong style="color:'+(n>=0?'var(--green-dark)':'var(--danger)')+'">'+rMoney(n)+'</strong></span></div>'+(F.totPossible>0?'<div style="font-size:13px;color:var(--text-muted);text-align:right;">plus '+rMoney(F.totPossible)+' possible from Pipeline</div>':'')+'</div>';});
+  const F0=fcBuild(t0,t0);
+  html+='<div style="font-size:13px;color:var(--text-muted);margin-top:8px;">'+(F0.totOver>0?rMoney(F0.totOver)+' is already overdue and could come in any time. ':'')+'Details on the Forecast page.</div>';
   document.getElementById('cd-cash').innerHTML=html;
   // top clients
   const names=rClients();const byC={};L.income.filter(x=>x.date>=P.from&&x.date<=P.to).forEach(x=>{const kk=rClientKey(x.job.org);(byC[kk]=byC[kk]||{key:kk,name:(names[kk]||{}).name||x.job.org||'(no client)',v:0}).v+=x.amount;});
@@ -3552,7 +3536,7 @@ function createJobsFromDeals(){
 // ─── "NEW VERSION AVAILABLE" BANNER ───
 // Checks the published app every 5 minutes (and when you come back to the
 // tab). If a newer version has been uploaded, offers a one-click update.
-const APP_BUILD='20260927140111';
+const APP_BUILD='20260927144245';
 let appUpdateShown=false;
 async function checkForAppUpdate(){
   if(appUpdateShown||!window.fetch||location.protocol==='file:')return;
