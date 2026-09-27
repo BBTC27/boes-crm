@@ -682,6 +682,7 @@
         </select>
         <button class="btn btn-success btn-sm" onclick="openJobModal()">+ New Job</button>
         <button class="btn btn-outline btn-sm" onclick="openJobsFromDeals()">⬇ Create jobs from Production</button>
+        <button class="btn btn-outline btn-sm" onclick="openMarkPaidJobs()">✓ Mark Paid/Closed jobs as paid</button>
       </div>
       <div class="card">
         <table class="data-table">
@@ -1038,6 +1039,19 @@
 </div>
 
 <!-- MODAL: JOB DETAIL -->
+<div class="modal-overlay" id="modal-mark-paid-jobs">
+  <div class="modal" style="max-width:820px;">
+    <div class="modal-header">
+      <h3>Mark Paid/Closed jobs as paid</h3>
+      <button class="modal-close" onclick="closeModal('modal-mark-paid-jobs')">✕</button>
+    </div>
+    <div class="modal-body" id="pp-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-mark-paid-jobs')">Cancel</button>
+      <button class="btn btn-success" id="pp-save" onclick="saveMarkPaidJobs()">Mark ticked jobs paid</button>
+    </div>
+  </div>
+</div>
 <div class="modal-overlay" id="modal-jobs-from-deals">
   <div class="modal" style="max-width:1000px;">
     <div class="modal-header">
@@ -3506,7 +3520,7 @@ function renderJobsFromDeals(){
   const already=(DB.deals||[]).filter(d=>d.board==='production'&&fdHasJob(d)).length;
   if(!list.length){body.innerHTML='<div style="color:var(--text-muted);padding:10px 0;">Every Production project already has an accounting job'+(already?' ('+already+')':'')+'. Nothing to add.</div>';document.getElementById('fd-create').disabled=true;return;}
   document.getElementById('fd-create').disabled=false;
-  let h='<p style="font-size:14px;color:var(--text-muted);margin:0 0 10px;">Tick the projects to add. Category is a best guess from the title; change it if needed. Payments are added later, per job. Projects already <strong>Paid/Closed</strong> start unticked: those are better brought in with the Wave import, which includes their payments.'+(already?' '+already+' project(s) already have a job and are not shown.':'')+'</p>';
+  let h='<p style="font-size:14px;color:var(--text-muted);margin:0 0 10px;">Tick the projects to add. Category is a best guess from the title; change it if needed. Payments are added later, per job. Projects already in <strong>Paid/Closed</strong> start unticked, since the Wave import can bring them in with their real payments. If you tick one, its job is created already marked paid in full.'+(already?' '+already+' project(s) already have a job and are not shown.':'')+'</p>';
   h+='<div style="overflow-x:auto;"><table class="data-table"><thead><tr><th><input type="checkbox" id="fd-all" onchange="document.querySelectorAll(\'.fd-pick\').forEach(c=>c.checked=this.checked)"></th><th>Project</th><th>Client</th><th>Stage</th><th>Value</th><th>Dates</th><th>Category</th><th>Service line</th></tr></thead><tbody>';
   list.forEach((d,i)=>{
     const cat=fdGuessCategory(d.title+' '+(d.notes||''));const sub=fdGuessSubcat(cat,d.title+' '+(d.notes||''));
@@ -3525,7 +3539,8 @@ function createJobsFromDeals(){
     const row=document.getElementById('fd-row-'+i);const d=all.find(x=>x.id===row.dataset.id);if(!d||fdHasJob(d))return;
     ACCT.jobs.unshift({id:acctUID(),dealId:d.id,org:d.org||'',project:d.title||'',value:parseFloat(d.value)||0,
       category:document.getElementById('fd-cat-'+i).value,subcat:document.getElementById('fd-sub-'+i).value,
-      contact:d.contact||'',start:d.startDate||'',end:d.closeDate||'',notes:'Created from Production project',payments:[],writeOffs:[],created:Date.now()});
+      contact:d.contact||'',start:d.startDate||'',end:d.closeDate||'',notes:'Created from Production project',writeOffs:[],created:Date.now(),
+      payments:d.stage==='Paid/Closed'&&parseFloat(d.value)>0?[{id:acctUID(),type:'Paid in full',amount:parseFloat(d.value)||0,date:ppPaidDate(d,{end:d.closeDate,start:d.startDate}),status:'Received',notes:'Marked paid: project is Paid/Closed'}]:[]});
     n++;
   });
   if(!n){toast('Nothing ticked.',true);return;}
@@ -3536,7 +3551,7 @@ function createJobsFromDeals(){
 // ─── "NEW VERSION AVAILABLE" BANNER ───
 // Checks the published app every 5 minutes (and when you come back to the
 // tab). If a newer version has been uploaded, offers a one-click update.
-const APP_BUILD='20260927144245';
+const APP_BUILD='20260927151154';
 let appUpdateShown=false;
 async function checkForAppUpdate(){
   if(appUpdateShown||!window.fetch||location.protocol==='file:')return;
@@ -3561,6 +3576,49 @@ function applyAppUpdate(){
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkForAppUpdate();});
   setTimeout(checkForAppUpdate,20000);
 })();
+
+// ─── MARK JOBS FROM PAID/CLOSED PROJECTS AS PAID ───
+// A job whose Production project is Paid/Closed but has no Received
+// payment would otherwise show as owed and, later, overdue. This records a
+// "Paid in full" payment for the remaining balance. The date defaults to
+// when the project moved to Paid/Closed; it can be changed before saving.
+function ppDealFor(j){
+  const all=(DB.deals||[]).concat(DB.archive||[]);
+  if(j.dealId){const d=all.find(x=>x.id===j.dealId);if(d)return d;}
+  return all.find(d=>CV.norm(d.title)===CV.norm(j.project)&&CV.norm(d.org)===CV.norm(j.org))||null;
+}
+function ppPaidDate(d,j){
+  const ms=d&&d.stageEnteredAt;if(ms){const s=new Date(ms);if(!isNaN(s))return s.toISOString().slice(0,10);}
+  return j.end||j.start||todayStr();
+}
+function ppCandidates(){
+  return(ACCT.jobs||[]).map(j=>{const d=ppDealFor(j);return{j,d,bal:getJobBalance(j)};})
+    .filter(x=>x.d&&x.d.stage==='Paid/Closed'&&x.bal>0.5);
+}
+function openMarkPaidJobs(){
+  const list=ppCandidates();const body=document.getElementById('pp-body');
+  if(!list.length){body.innerHTML='<div style="color:var(--text-muted);padding:10px 0;">No jobs need this. Every job whose project is Paid/Closed is already marked paid.</div>';document.getElementById('pp-save').disabled=true;openModal('modal-mark-paid-jobs');return;}
+  document.getElementById('pp-save').disabled=false;
+  body.innerHTML='<p style="font-size:14px;color:var(--text-muted);margin:0 0 10px;">These jobs belong to projects in <strong>Paid/Closed</strong> but still show a balance. Saving records one <strong>Received</strong> "Paid in full" payment for each balance. The date is when the project moved to Paid/Closed; change it if you know the real payment date. The Wave import can correct dates later.</p>'+
+    '<div style="overflow-x:auto;"><table class="data-table"><thead><tr><th></th><th>Job</th><th>Client</th><th>Balance</th><th>Paid on</th></tr></thead><tbody>'+
+    list.map((x,i)=>'<tr id="pp-row-'+i+'" data-id="'+rEsc(x.j.id)+'"><td><input type="checkbox" id="pp-pick-'+i+'" checked></td><td style="font-weight:600;">'+rEsc(x.j.project)+'</td><td>'+rEsc(x.j.org)+'</td><td>'+rMoney(x.bal)+'</td><td><input type="date" class="form-control" id="pp-date-'+i+'" value="'+ppPaidDate(x.d,x.j)+'" style="max-width:170px;"></td></tr>').join('')+
+    '</tbody></table></div>';
+  openModal('modal-mark-paid-jobs');
+}
+function saveMarkPaidJobs(){
+  const list=ppCandidates();let n=0,total=0;
+  list.forEach((x,i)=>{
+    const pick=document.getElementById('pp-pick-'+i);const row=document.getElementById('pp-row-'+i);
+    if(!pick||!pick.checked||!row||row.dataset.id!==x.j.id)return;
+    const date=(document.getElementById('pp-date-'+i)||{}).value||ppPaidDate(x.d,x.j);
+    if(!x.j.payments)x.j.payments=[];
+    x.j.payments.push({id:acctUID(),type:'Paid in full',amount:Math.round(x.bal*100)/100,date,status:'Received',notes:'Marked paid: project is Paid/Closed'});
+    n++;total+=x.bal;
+  });
+  if(!n){toast('Nothing ticked.',true);return;}
+  saveAcct();closeModal('modal-mark-paid-jobs');renderJobsView();try{renderForecast();updateAcctAlertBadge();}catch(e){}
+  toast('✅ Marked '+n+' job'+(n===1?'':'s')+' paid ('+rMoney(total)+').');
+}
 
 // ─── INIT ───
 // Data now comes from Supabase after sign-in (see CLOUD DATA above).
