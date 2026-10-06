@@ -1,6 +1,15 @@
 {
-  "updatedAt": "2026-08-24",
+  "updatedAt": "2026-10-06",
   "rfps": [
+    {
+      "id": "15BNAS26Q00000074",
+      "name": "BOP — NFPA 101 Life Safety Code Training Classes (MSTC Aurora, CO)",
+      "tag": "Green",
+      "stage": "Closed — No award (lost to Carson Associates)",
+      "decision": "Pursued and submitted 2026-07-24. Award notice received 2026-10-05 from George Bodine (Contracting Officer, BOP National Acquisition Section). Best-value comparative analysis; price was the least important factor.",
+      "deadline": "Closed — quote submitted 2026-07-24 (due 5:00 PM ET); award notice 2026-10-05",
+      "notes": "Award: Carson Associates, $474,500.00 total (5 years + 6-month option). B&B total evaluated price $342,565.40 (about 28% below the winning price; base year $14,378.26/class). Award factors cited: past performance, technical factors, price (least important), plus an enhancement factor for the most updated code textbooks (our enhancement was a reusable hazard-assessment checklist). LESSONS LEARNED: (1) Price was not the problem — on best-value awards where price is least important, we cannot win on price; past performance and technical fit decide. (2) Winner's public materials show prior BOP work and NFPA detention/correctional committee involvement; B&B had no correctional experience, no course titled NFPA 101, and past performance gaps (one government reference with no POC; two leads dropped for lack of documented contacts). (3) Read the evaluation factors for tangible enhancements (e.g., current code textbooks) and match them literally. (4) Before bidding agency-specific, best-value RFQs, check whether incumbent/prior-work vendors exist (FPDS/USAspending) and weigh our past performance gap in the bid decision. (5) Confirm SF1449 block 30a signature is populated on the retained file copy. Strategy note: build first-time-success pathway through past performance first (small awards, subcontracts, teaming) and target solicitations where past performance is weighted lightly or price-led."
+    },
     {
       "id": "DCR-003",
       "name": "MA DCR — Health/Safety & Environmental/Compliance Certification & Training (Category 2 subset)",
