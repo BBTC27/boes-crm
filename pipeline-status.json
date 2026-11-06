@@ -1,6 +1,24 @@
 {
-  "updatedAt": "2026-10-06",
+  "updatedAt": "2026-11-06",
   "rfps": [
+    {
+      "id": "807202611062",
+      "name": "Town of Rolesville, NC — On-Call FEMA Public Assistance / Hazard Mitigation & Grant Management Consulting / Disaster Recovery Services",
+      "tag": "Green",
+      "stage": "Submitted",
+      "decision": "Bid as written (Terry, 2026-11-06): principal-led advisory team with licensed specialists engaged per event (Addendum #2 Q4/Q7/Q10). Subconsultants named: Brian Campbell, Ken Burson. Linda's TDEM Hurricane Harvey curriculum for building FEMA-compliant projects added as core Project Worksheet experience.",
+      "deadline": "2026-11-06 4:00 PM ET — submitted by email to Amy Pelman (apelman@rolesvillenc.gov) from terry@boesandboes.com before the deadline. Interviews week of 2026-11-09 to 11-13; award on or before 2026-12-01; 60-month on-call term.",
+      "notes": "Package: branded proposal (cover page, Sections A-F, signed Letter of Intent), cost proposal, 4 resumes (Terrance Boes, Linda Kepschull-Boes, Brian Campbell, Ken Burson). First bid with the Community Investment Rate: 15% off standard rates ($175/$135/$95 -> $148.75/$114.75/$80.75); sample event estimate $53,260 (standard labor value $55,600 less $8,340, plus $6,000 travel at cost); travel time not billed; 1.25x after hours; COLA escalation after year 1. No-cost value-add: Documentation Readiness Check within 60 days. RFP states award is based on cost proposals of responsible, responsive submissions. Lessons: RFP required 12-point minimum font (caught and fixed before sending); check format rules at review step."
+    },
+    {
+      "id": "RFP-26-095",
+      "name": "Wake County, NC — Public Health Disaster Preparedness Plans (COOP, CBRN, RDU, MCM/LRS/POD, Mass Care, Responder Health & Safety)",
+      "tag": "Yellow",
+      "stage": "Final Review",
+      "decision": "Draft reviewed and rewritten 2026-11-06; flags reduced from 32 to 5. Open go/no-go item: public health (PHEP/MCM/POD) experience gap; name a public health planning partner or bid as written.",
+      "deadline": "2026-11-12 3:00 PM ET via Wake County Bonfire portal; target submit 2026-11-10",
+      "notes": "Public Partner Rate applies (15% off labor). Estimated price about $232,864 after discount (labor $187,264 + $30,000 partner allowance + $15,600 travel) against a $400,000 HHS PHIG grant. Open items: partner decision, Bonfire login for official RFP and Oct 27 addendum, pricing approval, reference contact details (NFA contact, Rosario mailing address), $3M cyber liability check. Value-add planned: Continuity Readiness Check."
+    },
     {
       "id": "15BNAS26Q00000074",
       "name": "BOP — NFPA 101 Life Safety Code Training Classes (MSTC Aurora, CO)",
