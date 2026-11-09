@@ -1,7 +1,7 @@
 name: Supabase keep-alive
 
 # Pings the Supabase project twice a week so the free plan never auto-pauses.
-# If the ping fails (for example the project is already paused), this job fails
+# If a ping fails (for example the project is already paused), this job fails
 # and GitHub emails you, so you hear about it before the app breaks.
 
 on:
@@ -13,16 +13,28 @@ jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Supabase REST API
+      - name: Ping Supabase
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_TABLE: ${{ secrets.SUPABASE_TABLE }}   # optional
         run: |
           if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
             echo "Missing SUPABASE_URL or SUPABASE_ANON_KEY repository secret"; exit 1
           fi
+          base="${SUPABASE_URL%/}"
+
+          # 1) Auth service health check
           code=$(curl -sS -o /dev/null -w "%{http_code}" --retry 3 --retry-delay 10 \
-            -H "apikey: $SUPABASE_ANON_KEY" \
-            "${SUPABASE_URL%/}/rest/v1/")
-          echo "Supabase responded with HTTP $code"
+            -H "apikey: $SUPABASE_ANON_KEY" "$base/auth/v1/health")
+          echo "Auth health: HTTP $code"
           if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then exit 1; fi
+
+          # 2) Optional: read one row from a real table (counts as database activity)
+          if [ -n "$SUPABASE_TABLE" ]; then
+            code=$(curl -sS -o /dev/null -w "%{http_code}" --retry 3 --retry-delay 10 \
+              -H "apikey: $SUPABASE_ANON_KEY" \
+              "$base/rest/v1/$SUPABASE_TABLE?select=*&limit=1")
+            echo "Table read ($SUPABASE_TABLE): HTTP $code"
+            if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then exit 1; fi
+          fi
