@@ -23,7 +23,6 @@ jobs:
           fi
           code=$(curl -sS -o /dev/null -w "%{http_code}" --retry 3 --retry-delay 10 \
             -H "apikey: $SUPABASE_ANON_KEY" \
-            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
             "${SUPABASE_URL%/}/rest/v1/")
           echo "Supabase responded with HTTP $code"
           if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then exit 1; fi
