@@ -1,6 +1,16 @@
 {
-  "updatedAt": "2026-10-27",
+  "updatedAt": "2026-10-26",
   "rfps": [
+    {
+      "id": "80NSSC27944226Q",
+      "name": "NASA Lead Forward Leadership Development Program (80NSSC27944226Q)",
+      "tag": "Yellow",
+      "stage": "Submitted",
+      "decision": "Bid and submitted (moved to Submitted in Trello on 2026-10-26).",
+      "deadline": "Mon Oct 26, 2026 4:00 PM CT (per NASA's extension; quote sent Oct 26)",
+      "notes": "Agency: NASA Shared Services Center / NASA Glenn Research Center. Submitted 2026-10-26 (Trello card moved to Submitted). Trello: https://trello.com/c/inQyy7GK",
+      "trelloUrl": "https://trello.com/c/inQyy7GK"
+    },
     {
       "id": "SRC0000036562",
       "name": "Ohio Dept of Aging Emergency Preparedness Course Development for EXCEL Academy (SRC0000036562 Round 2)",
