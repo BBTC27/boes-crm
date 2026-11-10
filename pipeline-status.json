@@ -1,6 +1,16 @@
 {
-  "updatedAt": "2026-11-07",
+  "updatedAt": "2026-11-06",
   "rfps": [
+    {
+      "id": "19-RFP-2413542877-RMT",
+      "name": "NC Dept of Public Safety (NCEM)/NC: SERT Exercise Services (19-RFP-2413542877-RMT)",
+      "tag": "Green",
+      "stage": "Submitted",
+      "decision": "Bid and submitted (moved to Submitted in Trello on 2026-11-06).",
+      "deadline": "Thu Nov 5, 2026, 2:00 PM ET (electronic only via NC eVP).",
+      "notes": "Agency: North Carolina Department of Public Safety – NC Emergency Management (NCEM) Exercise Branch, Raleigh, NC. Submitted 2026-11-06 (Trello card moved to Submitted). Trello: https://trello.com/c/02UoAeo6",
+      "trelloUrl": "https://trello.com/c/02UoAeo6"
+    },
     {
       "id": "807202611062",
       "name": "Town of Rolesville, NC — On-Call FEMA Public Assistance / Hazard Mitigation & Grant Management Consulting / Disaster Recovery Services",
