@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-06",
+  "updatedAt": "2026-11-07",
   "rfps": [
     {
       "id": "807202611062",
@@ -15,10 +15,11 @@
       "id": "RFP-26-095",
       "name": "Wake County, NC — Public Health Disaster Preparedness Plans (COOP, CBRN, RDU, MCM/LRS/POD, Mass Care, Responder Health & Safety)",
       "tag": "Yellow",
-      "stage": "Final Review",
+      "stage": "Submitted",
       "decision": "Draft reviewed and rewritten 2026-11-06; flags reduced from 32 to 5. Open go/no-go item: public health (PHEP/MCM/POD) experience gap; name a public health planning partner or bid as written.",
       "deadline": "2026-11-12 3:00 PM ET via Wake County Bonfire portal; target submit 2026-11-10",
-      "notes": "Public Partner Rate applies (15% off labor). Estimated price about $232,864 after discount (labor $187,264 + $30,000 partner allowance + $15,600 travel) against a $400,000 HHS PHIG grant. Open items: partner decision, Bonfire login for official RFP and Oct 27 addendum, pricing approval, reference contact details (NFA contact, Rosario mailing address), $3M cyber liability check. Value-add planned: Continuity Readiness Check."
+      "notes": "Public Partner Rate applies (15% off labor). Estimated price about $232,864 after discount (labor $187,264 + $30,000 partner allowance + $15,600 travel) against a $400,000 HHS PHIG grant. Open items: partner decision, Bonfire login for official RFP and Oct 27 addendum, pricing approval, reference contact details (NFA contact, Rosario mailing address), $3M cyber liability check. Value-add planned: Continuity Readiness Check. | Submitted 2026-11-07 (Trello card moved to Submitted). Trello: https://trello.com/c/dC9JgttI",
+      "trelloUrl": "https://trello.com/c/dC9JgttI"
     },
     {
       "id": "15BNAS26Q00000074",
