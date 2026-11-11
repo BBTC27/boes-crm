@@ -1,6 +1,16 @@
 {
-  "updatedAt": "2026-10-26",
+  "updatedAt": "2026-11-11",
   "rfps": [
+    {
+      "id": "26-00328-ACAC",
+      "name": "SEPTA/PA: Homeland Security Exercise & Evaluation Program (HSEEP), 2-year, 6 exercises (RFP 26-00328-ACAC)",
+      "tag": "Green",
+      "stage": "Submitted",
+      "decision": "Bid and submitted (moved to Submitted in Trello on 2026-11-11).",
+      "deadline": "Thu Nov 12, 2026, 1:00 PM ET (moved from Nov 9 by Addendum 2; unchanged by Addendum 3). Paper only: hand-deliver or FedEx/UPS. No emailed proposals. Posted Oct 7.",
+      "notes": "Agency: Southeastern Pennsylvania Transportation Authority (SEPTA), Procurement & Supply Chain Management, 1234 Market St, 11th Floor, Philadelphia PA 19107-3780. Contact: Carolyn Cotton, Sr. Contract Administrator, cCotton@SEPTA.org, 215-580-7599. Submitted 2026-11-11 (Trello card moved to Submitted). Trello: https://trello.com/c/ygmSdmsn",
+      "trelloUrl": "https://trello.com/c/ygmSdmsn"
+    },
     {
       "id": "80NSSC27944226Q",
       "name": "NASA Lead Forward Leadership Development Program (80NSSC27944226Q)",
