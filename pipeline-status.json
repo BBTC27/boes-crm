@@ -2,6 +2,16 @@
   "updatedAt": "2026-11-11",
   "rfps": [
     {
+      "id": "FWAIRPORT-03BA45D5",
+      "name": "Fort Wayne-Allen County Airport Authority/IN: Emergency Management Consultant Services (RFP)",
+      "tag": "Green",
+      "stage": "Submitted",
+      "decision": "Bid and submitted (moved to Submitted in Trello on 2026-11-11).",
+      "deadline": "Thu Nov 19, 2026, 5:00 PM ET. Submit by email only, as a searchable PDF, to Klepper@fwairport.com. Subject line: \"Emergency Management Consultant Services RFP\". The RFP prints \"EDT\", but on that date Eastern Time is EST.",
+      "notes": "Agency: Fort Wayne-Allen County Airport Authority (FWACAA), Fort Wayne International Airport, Fort Wayne, IN. Submitted 2026-11-11 (Trello card moved to Submitted). Trello: https://trello.com/c/yccHI9yL",
+      "trelloUrl": "https://trello.com/c/yccHI9yL"
+    },
+    {
       "id": "26-00328-ACAC",
       "name": "SEPTA/PA: Homeland Security Exercise & Evaluation Program (HSEEP), 2-year, 6 exercises (RFP 26-00328-ACAC)",
       "tag": "Green",
