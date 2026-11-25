@@ -675,7 +675,7 @@
       <div class="kpi-grid" id="jobs-kpis"></div>
       <div class="toolbar">
         <select class="inline-select" id="jobs-filter-status" onchange="renderJobsView()">
-          <option value="">All Jobs</option><option value="Active">Active</option><option value="Partial">Partial</option><option value="Complete">Complete</option>
+          <option value="">All Jobs</option><option value="Active">Active</option><option value="Partial">Partial</option><option value="Complete">Complete</option><option value="Written Off">Written Off</option>
         </select>
         <select class="inline-select" id="jobs-filter-cat" onchange="renderJobsView()">
           <option value="">All Categories</option><option value="Training">Training</option><option value="Consulting">Consulting</option>
@@ -686,7 +686,7 @@
       </div>
       <div class="card">
         <table class="data-table">
-          <thead><tr><th>Client / Project</th><th>Category</th><th>Contract</th><th>Received</th><th>Balance</th><th>Status</th><th>Margin</th><th></th></tr></thead>
+          <thead><tr><th>Client / Project</th><th>Category</th><th>Contract</th><th>Received</th><th>Balance</th><th>Direct</th><th>Gross margin</th><th>Status</th><th></th></tr></thead>
           <tbody id="jobs-tbody"></tbody>
         </table>
       </div>
@@ -699,19 +699,18 @@
       <div class="toolbar">
         <select class="inline-select" id="exp-filter-type" onchange="renderExpensesView()">
           <option value="">All Types</option>
-          <option value="Subcontractor">Subcontractor</option>
-          <option value="Travel & Lodging">Travel & Lodging</option>
-          <option value="Materials & Supplies">Materials & Supplies</option>
-          <option value="Printing / Course Materials">Printing</option>
-          <option value="Venue / Facility">Venue / Facility</option>
-          <option value="Certification Fees">Certification Fees</option>
+        </select>
+        <select class="inline-select" id="exp-filter-class" onchange="renderExpensesView()">
+          <option value="">Direct &amp; indirect</option>
+          <option value="direct">Direct (job cost)</option>
+          <option value="indirect">Indirect (overhead)</option>
         </select>
         <select class="inline-select" id="exp-filter-job" onchange="renderExpensesView()"><option value="">All Jobs</option></select>
         <button class="btn btn-primary btn-sm" onclick="openExpenseModal()">+ Add Expense</button>
       </div>
       <div class="card">
         <table class="data-table">
-          <thead><tr><th>Description</th><th>Type</th><th>Linked Job</th><th>Vendor / Payee</th><th>Date</th><th>Amount</th><th>Deductible</th><th></th></tr></thead>
+          <thead><tr><th>Description</th><th>Type</th><th>Class</th><th>Linked Job</th><th>Vendor / Payee</th><th>Date</th><th>Amount</th><th>Deductible</th><th></th></tr></thead>
           <tbody id="expenses-tbody"></tbody>
         </table>
       </div>
@@ -852,7 +851,7 @@
       </div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">Location</label><input class="form-control" id="e-location" placeholder="Virtual / Doha, Qatar"></div>
-        <div class="form-group"><label class="form-label">Amount Paid ($)</label><input class="form-control" id="e-amount" type="number" placeholder="599"></div>
+        <div class="form-group"><label class="form-label">Amount Paid ($)</label><input class="form-control" id="e-amount" type="number" step="0.01" min="0" placeholder="599"></div>
       </div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">Payment Status</label>
@@ -910,7 +909,7 @@
         <div class="form-group"><label class="form-label">Contact</label><input class="form-control" id="d-contact" placeholder="Contact name"></div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label class="form-label">Value ($)</label><input class="form-control" id="d-value" type="number" placeholder="0"></div>
+        <div class="form-group"><label class="form-label">Value ($)</label><input class="form-control" id="d-value" type="number" step="0.01" min="0" placeholder="0"></div>
         <div class="form-group"><label class="form-label">Stage</label>
           <select class="form-control" id="d-stage">
             <option>Prospect</option><option>Qualified</option><option>Proposal</option><option>Negotiation</option><option>Closed Won</option><option>Closed Lost</option>
@@ -978,7 +977,7 @@
       <div class="form-group"><label class="form-label">Project Title</label><input class="form-control" id="ac-title" placeholder="Project name"></div>
       <div class="form-group"><label class="form-label">Organization</label><input class="form-control" id="ac-org" placeholder="Company"></div>
       <div class="form-row">
-        <div class="form-group"><label class="form-label">Value ($)</label><input class="form-control" id="ac-value" type="number" placeholder="0"></div>
+        <div class="form-group"><label class="form-label">Value ($)</label><input class="form-control" id="ac-value" type="number" step="0.01" min="0" placeholder="0"></div>
         <div class="form-group"><label class="form-label">Start Date</label><input class="form-control" id="ac-start" type="date"></div>
       </div>
       <div class="form-group"><label class="form-label">End Date</label><input class="form-control" id="ac-close" type="date"></div>
@@ -1009,7 +1008,7 @@
         </div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label class="form-label">Contract Value ($)</label><input class="form-control" id="j-value" type="number" placeholder="0" oninput="calcJobSummary()"></div>
+        <div class="form-group"><label class="form-label">Contract Value ($)</label><input class="form-control" id="j-value" type="number" step="0.01" min="0" placeholder="0" oninput="calcJobSummary()"></div>
         <div class="form-group"><label class="form-label">Contact Name</label><input class="form-control" id="j-contact" placeholder="Primary contact"></div>
       </div>
       <div class="form-row">
@@ -1092,7 +1091,27 @@
     <div class="modal-footer">
       <button class="btn btn-outline btn-sm" onclick="openExpenseModal(acctDetailJobId)">+ Add Expense</button>
       <button class="btn btn-outline btn-sm" onclick="addPaymentToJob(acctDetailJobId)">+ Add Payment</button>
+      <button class="btn btn-outline btn-sm" onclick="openWriteOffModal(acctDetailJobId)">+ Write off</button>
       <button class="btn btn-outline" onclick="closeModal('modal-job-detail')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: WRITE-OFF -->
+<div class="modal-overlay" id="modal-write-off">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header"><h3>Write off balance</h3><button class="modal-close" onclick="closeModal('modal-write-off')">✕</button></div>
+    <div class="modal-body">
+      <div id="wo-job-info" style="background:var(--surface2);border-radius:var(--radius-sm);padding:10px 14px;font-size:15px;margin-bottom:14px;"></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Date</label><input class="form-control" id="wo-date" type="date"></div>
+        <div class="form-group"><label class="form-label">Amount ($)</label><input class="form-control" id="wo-amount" type="number" step="0.01" min="0.01" placeholder="0.00"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Reason</label><input class="form-control" id="wo-reason" placeholder="Why this amount will not be collected"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-write-off')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveWriteOff()">Save write-off</button>
     </div>
   </div>
 </div>
@@ -1105,7 +1124,7 @@
       <div id="markpaid-info" style="background:var(--surface2);border-radius:var(--radius-sm);padding:10px 14px;font-size:15px;margin-bottom:14px;"></div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">Date Received</label><input class="form-control" id="markpaid-date" type="date"></div>
-        <div class="form-group"><label class="form-label">Amount Received</label><input class="form-control" id="markpaid-amount" type="number" placeholder="0"></div>
+        <div class="form-group"><label class="form-label">Amount Received</label><input class="form-control" id="markpaid-amount" type="number" step="0.01" min="0" placeholder="0"></div>
       </div>
       <div class="form-group"><label class="form-label">Notes</label><input class="form-control" id="markpaid-notes" placeholder="Check #, wire ref, etc."></div>
     </div>
@@ -1128,7 +1147,7 @@
             <option>Deposit</option><option>Progress Payment</option><option>Draw</option><option>Final Payment</option><option>Retainer</option><option>Other</option>
           </select>
         </div>
-        <div class="form-group"><label class="form-label">Amount ($)</label><input class="form-control" id="ap-amount" type="number" placeholder="0"></div>
+        <div class="form-group"><label class="form-label">Amount ($)</label><input class="form-control" id="ap-amount" type="number" step="0.01" min="0" placeholder="0"></div>
       </div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">Expected Date</label><input class="form-control" id="ap-date" type="date"></div>
@@ -1154,17 +1173,9 @@
       <div class="form-group"><label class="form-label">Description</label><input class="form-control" id="exp-desc" placeholder="What was this expense for?"></div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">Expense Type</label>
-          <select class="form-control" id="exp-type">
-            <option>Subcontractor</option>
-            <option>Travel & Lodging</option>
-            <option>Materials & Supplies</option>
-            <option>Printing / Course Materials</option>
-            <option>Venue / Facility</option>
-            <option>Certification Fees</option>
-            <option>Other</option>
-          </select>
+          <select class="form-control" id="exp-type" onchange="syncExpenseClassDefault(false)"></select>
         </div>
-        <div class="form-group"><label class="form-label">Amount ($)</label><input class="form-control" id="exp-amount" type="number" placeholder="0"></div>
+        <div class="form-group"><label class="form-label">Amount ($)</label><input class="form-control" id="exp-amount" type="number" step="0.01" min="0" placeholder="0"></div>
       </div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">Date</label><input class="form-control" id="exp-date" type="date"></div>
@@ -1172,8 +1183,16 @@
       </div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">Linked Job</label>
-          <select class="form-control" id="exp-job-link"><option value="">— Not linked to a job —</option></select>
+          <select class="form-control" id="exp-job-link" onchange="syncExpenseClassDefault(false)"><option value="">— Not linked to a job —</option></select>
         </div>
+        <div class="form-group"><label class="form-label">Cost class</label>
+          <select class="form-control" id="exp-class" onchange="this.dataset.touched='1'">
+            <option value="direct">Direct (job cost)</option>
+            <option value="indirect">Indirect (overhead)</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
         <div class="form-group"><label class="form-label">Tax Deductible?</label>
           <select class="form-control" id="exp-deductible"><option value="yes">Yes</option><option value="partial">Partial</option><option value="no">No</option></select>
         </div>
@@ -1201,7 +1220,7 @@
             <option>Professional Services</option><option>Marketing</option><option>Office Supplies</option><option>Utilities</option><option>Other</option>
           </select>
         </div>
-        <div class="form-group"><label class="form-label">Amount ($)</label><input class="form-control" id="oh-amount" type="number" placeholder="0"></div>
+        <div class="form-group"><label class="form-label">Amount ($)</label><input class="form-control" id="oh-amount" type="number" step="0.01" min="0" placeholder="0"></div>
       </div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">Frequency</label>
@@ -1216,6 +1235,13 @@
         <div class="form-group"><label class="form-label">Status</label>
           <select class="form-control" id="oh-status"><option value="active">Active</option><option value="paid">Paid</option><option value="paused">Paused</option></select>
         </div>
+      </div>
+      <div class="form-group"><label class="form-label">Counts in profit as</label>
+        <select class="form-control" id="oh-kind">
+          <option value="expense">Expense</option>
+          <option value="transfer">Transfer (excluded)</option>
+          <option value="cc-payment">Credit card payment (excluded)</option>
+        </select>
       </div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">Tax Deductible?</label>
@@ -1345,9 +1371,11 @@ Object.assign(TO_ROW,{
   },
   job_payments(p,jobId,pos){
     const d=CV.date(p.date);const status=CV.s(p.status)||'Expected';
-    const extra=CV.left(p,['id','type','amount','date','status','notes']);
+    const paid=CV.date(p.paidOn);
+    const extra=CV.left(p,['id','type','amount','date','status','notes','paidOn']);
     if(CV.s(p.date)&&!d)extra.dateRaw=p.date;
-    return{id:p.id,job_id:jobId,type:CV.n(p.type),amount:CV.money(p.amount),status,scheduled_on:d,paid_on:status==='Received'?d:null,position:pos,notes:CV.n(p.notes),extra};
+    if(CV.s(p.paidOn)&&!paid)extra.paidOnRaw=p.paidOn;
+    return{id:p.id,job_id:jobId,type:CV.n(p.type),amount:CV.money(p.amount),status,scheduled_on:d,paid_on:status==='Received'?(paid||d):null,position:pos,notes:CV.n(p.notes),extra};
   },
   job_write_offs(w,jobId){
     return{id:w.id,job_id:jobId,amount:CV.money(w.amount),written_off_on:CV.date(w.date),reason:CV.n(w.reason),extra:CV.left(w,['id','amount','date','reason'])};
@@ -1405,7 +1433,7 @@ const FROM_ROW={
 Object.assign(FROM_ROW,{
   jobs(r){const x=r.extra||{};return{...CV.unraw(x),id:r.id,dealId:r.deal_id||'',org:r.org||'',project:r.project||'',value:Number(r.value)||0,category:r.category||'',subcat:r.subcategory||'',
     contact:r.contact_name||'',start:r.start_date||x.startRaw||'',end:r.end_date||x.endRaw||'',notes:r.notes||'',payments:[],writeOffs:[],created:CV.ms(r.created_at)};},
-  job_payments(r){const x=r.extra||{};return{...CV.unraw(x),id:r.id,type:r.type||'',amount:Number(r.amount)||0,date:r.scheduled_on||r.paid_on||x.dateRaw||'',status:r.status||'Expected',notes:r.notes||''};},
+  job_payments(r){const x=r.extra||{};return{...CV.unraw(x),id:r.id,type:r.type||'',amount:Number(r.amount)||0,date:r.scheduled_on||x.dateRaw||'',paidOn:r.paid_on||x.paidOnRaw||'',status:r.status||'Expected',notes:r.notes||''};},
   job_write_offs(r){return{...CV.unraw(r.extra),id:r.id,amount:Number(r.amount)||0,date:r.written_off_on||'',reason:r.reason||''};},
   expenses(r){const x=r.extra||{};return{...CV.unraw(x),id:r.id,desc:r.description||'',amount:Number(r.amount)||0,type:r.type||'',vendor:r.vendor||'',date:r.spent_on||x.dateRaw||'',
     deductible:r.deductible||'yes',notes:r.notes||'',jobId:r.job_id||x.jobIdRaw||null,jobLabel:x.jobLabel===undefined?null:x.jobLabel,created:CV.ms(r.created_at)};},
@@ -1772,11 +1800,12 @@ function closeModal(id){document.getElementById(id).classList.remove('open');}
 document.querySelectorAll('.modal-overlay').forEach(mo=>{mo.addEventListener('click',e=>{if(e.target===mo)mo.classList.remove('open');});});
 
 // ─── HELPERS ───
-function todayStr(){return new Date().toISOString().split('T')[0];}
+function localDateStr(d){const dt=d instanceof Date?d:new Date(d);if(isNaN(dt.getTime()))return'';return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');}
+function todayStr(){return localDateStr(new Date());}
 function formatDate(d){if(!d)return'—';const dt=new Date(d+'T00:00:00');return dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});}
 function timeAgo(ts){const s=Math.floor((Date.now()-ts)/1000);if(s<60)return'just now';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';return Math.floor(s/86400)+'d ago';}
 function initials(f,l){return((f||'').charAt(0)+(l||'').charAt(0)).toUpperCase()||'??';}
-function fmtMoney(n){return'$'+(parseFloat(n)||0).toLocaleString('en-US',{minimumFractionDigits:0});}
+function fmtMoney(n){const v=Math.round((parseFloat(n)||0)*100)/100;const sign=v<0?'-':'';return sign+'$'+Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function actIcon(t){return{note:'📝',email:'📧',call:'📞',meeting:'🤝',task:'✅',deal:'🔀'}[t]||'📋';}
 function actClass(t){return{note:'act-note',email:'act-email',call:'act-call',meeting:'act-call',task:'act-task',deal:'act-deal'}[t]||'act-note';}
 function stageClass(s){return{'Prospect':'stage-prospect','Qualified':'stage-qualified','Proposal':'stage-proposal','Negotiation':'stage-negotiation','Closed Won':'stage-closed-won','Closed Lost':'stage-closed-lost'}[s]||'';}
@@ -2398,9 +2427,9 @@ function buildSyncPayload(){
     Contacts:DB.contacts||[],
     Students:DB.students||[],
     Activities:(DB.activities||[]).slice(0,300).map(a=>({...a,ts:a.ts?new Date(a.ts).toISOString():''})),
-    Jobs:(ACCT.jobs||[]),
-    Expenses:(ACCT.expenses||[]),
-    Overhead:(ACCT.overhead||[])
+    Jobs:liveJobs().map(j=>({...j,payments:livePayments(j),writeOffs:liveWriteOffs(j)})),
+    Expenses:liveExpenses(),
+    Overhead:liveOverhead()
   }};
 }
 function scheduleSync(){if(!SYNC.url||!SYNC.auto)return;clearTimeout(syncTimer);syncTimer=setTimeout(()=>syncToSheets(false),5000);}
@@ -2752,7 +2781,8 @@ function exportStudentsCSV(){
 const ACCT_KEY='boes_acct_v2';
 const TRAINING_SUBCATS=['Fire Training','Safety Training','Hazmat Training','Corporate Training','NFPA Certification Training','Incident Command Training'];
 const CONSULTING_SUBCATS=['Plan Writing','Plan Review & Revision','Compliance','Safety Planning','Exercises','Business Continuity'];
-const EXP_TYPES=['Subcontractor','Travel & Lodging','Materials & Supplies','Printing / Course Materials','Venue / Facility','Certification Fees','Other'];
+const EXP_TYPES=['Sales Commission','ProBoard/Certification Fees','Books/Course Materials','Subcontractor','Travel & Lodging','Venue','Printing','Other','Materials & Supplies','Printing / Course Materials','Venue / Facility','Certification Fees'];
+const EXP_CLASS={'Sales Commission':'direct','ProBoard/Certification Fees':'direct','Books/Course Materials':'direct','Subcontractor':'direct','Travel & Lodging':'direct','Venue':'direct','Printing':'direct','Other':'indirect','Materials & Supplies':'direct','Printing / Course Materials':'direct','Venue / Facility':'direct','Certification Fees':'direct'};
 const OH_CATS=['Rent / Facilities','Insurance','Software / Subscriptions','Professional Services','Marketing','Office Supplies','Utilities','Other'];
 
 function defaultAcct(){return{jobs:[],expenses:[],overhead:[],version:'2.0'};}
@@ -2763,23 +2793,43 @@ function loadAcct(){const raw=localStorage.getItem(ACCT_KEY);if(raw){try{ACCT={.
 
 // ── HELPERS ──
 function acctUID(){return'a'+Date.now().toString(36)+Math.random().toString(36).substr(2,4);}
-function fmtAmt(n){return'$'+(parseFloat(n)||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});}
+function fmtAmt(n){return fmtMoney(n);}
+function fmtBalance(n){const v=Math.round((parseFloat(n)||0)*100)/100;if(v<-0.004)return'Overpaid '+fmtAmt(Math.abs(v));return fmtAmt(v);}
 function daysBetween(d1,d2){return Math.round((new Date(d2)-new Date(d1))/(1000*60*60*24));}
-function addDays(dateStr,n){const d=new Date(dateStr+'T00:00:00');d.setDate(d.getDate()+n);return d.toISOString().split('T')[0];}
+function addDays(dateStr,n){const parts=String(dateStr||todayStr()).split('-').map(Number);const d=new Date(parts[0],(parts[1]||1)-1,parts[2]||1);d.setDate(d.getDate()+(n||0));return localDateStr(d);}
 function today90(){return addDays(todayStr(),90);}
+function isDeleted(r){return !!(r&&r.deleted);}
+function liveJobs(){return(ACCT.jobs||[]).filter(j=>!isDeleted(j));}
+function liveExpenses(){return(ACCT.expenses||[]).filter(e=>!isDeleted(e));}
+function liveOverhead(){return(ACCT.overhead||[]).filter(o=>!isDeleted(o));}
+function livePayments(job){return((job&&job.payments)||[]).filter(p=>!isDeleted(p));}
+function liveWriteOffs(job){return((job&&job.writeOffs)||[]).filter(w=>!isDeleted(w));}
+function round2(n){const v=typeof rNum==='function'?rNum(n):parseFloat(n);return Math.round((isFinite(v)?v:0)*100)/100;}
+function expenseCostClass(e){
+  if(!e)return'indirect';
+  if(e.costClass==='direct'||e.costClass==='indirect')return e.costClass;
+  if(e.jobId)return'direct';
+  return EXP_CLASS[e.type]||'indirect';
+}
+function defaultCostClass(type,jobId){if(jobId)return'direct';return EXP_CLASS[type]||'indirect';}
+function classLabel(c){return c==='direct'?'Direct':'Indirect';}
+function writeOffTotal(job){return liveWriteOffs(job).reduce((s,w)=>s+round2(w.amount),0);}
+function getJobDirectCosts(jobId){return liveExpenses().filter(e=>e.jobId===jobId&&expenseCostClass(e)==='direct').reduce((s,e)=>s+round2(e.amount),0);}
+function jobGrossMargin(job){const net=round2(job.value)-writeOffTotal(job);const direct=getJobDirectCosts(job.id);const gm=round2(net-direct);const pct=Math.abs(net)>=0.005?Math.round(gm/net*100):null;return{net,direct,gm,pct};}
 
 function getJobStatus(job){
-  const rec=(job.payments||[]).filter(p=>p.status==='Received').reduce((s,p)=>s+(p.amount||0),0);
-  const wo=(job.writeOffs||[]).reduce((s,w)=>s+(w.amount||0),0);
-  const bal=job.value-rec-wo;
-  if(wo>0&&bal<=0)return'Written Off';
-  if(rec>=job.value)return'Complete';
-  if(rec>0)return'Partial';
+  const rec=getJobReceived(job);
+  const wo=writeOffTotal(job);
+  const value=round2(job.value);
+  const bal=round2(value-rec-wo);
+  if((value>0.005||rec>0.005)&&rec+0.005>=value)return'Complete';
+  if(wo>0.005&&bal<=0.005)return'Written Off';
+  if(rec>0.005||wo>0.005)return'Partial';
   return'Active';
 }
-function getJobReceived(job){return(job.payments||[]).filter(p=>p.status==='Received').reduce((s,p)=>s+(p.amount||0),0);}
-function getJobExpenses(jobId){return(ACCT.expenses||[]).filter(e=>e.jobId===jobId).reduce((s,e)=>s+(e.amount||0),0);}
-function getJobBalance(job){const rec=getJobReceived(job);const wo=(job.writeOffs||[]).reduce((s,w)=>s+(w.amount||0),0);return Math.max(0,job.value-rec-wo);}
+function getJobReceived(job){return livePayments(job).filter(p=>p.status==='Received').reduce((s,p)=>s+round2(p.amount),0);}
+function getJobExpenses(jobId){return liveExpenses().filter(e=>e.jobId===jobId).reduce((s,e)=>s+round2(e.amount),0);}
+function getJobBalance(job){return round2(round2(job.value)-getJobReceived(job)-writeOffTotal(job));}
 
 function statusChip(s){const m={Active:'tag navy',Partial:'tag',Complete:'tag green','Written Off':'tag'};return'<span class="'+(m[s]||'tag')+'">'+s+'</span>';}
 function deductChip(v){return v==='yes'?'<span class="tag green">Yes</span>':v==='no'?'<span class="tag">No</span>':'<span class="tag">Partial</span>';}
@@ -2792,10 +2842,27 @@ function updateJobSubcats(){
   sel.innerHTML=opts.map(o=>'<option>'+o+'</option>').join('');
 }
 
+function expenseTypeOptions(selected){
+  const types=EXP_TYPES.slice();
+  liveExpenses().forEach(e=>{if(e.type&&!types.includes(e.type))types.push(e.type);});
+  return types.map(t=>'<option value="'+rEsc(t)+'"'+(t===selected?' selected':'')+'>'+rEsc(t)+'</option>').join('');
+}
+function fillExpenseTypeSelect(selected){
+  const sel=document.getElementById('exp-type');if(!sel)return;
+  sel.innerHTML=expenseTypeOptions(selected||sel.value||EXP_TYPES[0]);
+  if(selected)sel.value=selected;
+}
+function syncExpenseClassDefault(force){
+  const sel=document.getElementById('exp-class');if(!sel)return;
+  if(!force&&sel.dataset.touched==='1')return;
+  const type=(document.getElementById('exp-type')||{}).value||'';
+  const jobId=(document.getElementById('exp-job-link')||{}).value||'';
+  sel.value=defaultCostClass(type,jobId);
+}
 function populateExpJobLink(preId){
   const sel=document.getElementById('exp-job-link');if(!sel)return;
   sel.innerHTML='<option value="">— Not linked to a job —</option>'+
-    (ACCT.jobs||[]).map(j=>'<option value="'+j.id+'"'+(j.id===preId?' selected':'')+'>'+j.org+' — '+j.project+'</option>').join('');
+    liveJobs().map(j=>'<option value="'+rEsc(j.id)+'"'+(j.id===preId?' selected':'')+'>'+rEsc(j.org)+' — '+rEsc(j.project)+'</option>').join('');
 }
 
 // ── JOB PAYMENT ROW BUILDER ──
@@ -2804,17 +2871,17 @@ function addJobPaymentRow(){
   jobPayRows.push({id:acctUID(),type:'Progress Payment',amount:0,date:'',status:'Expected',notes:''});
   renderJobPayRows();
 }
-function removeJobPayRow(idx){jobPayRows.splice(idx,1);renderJobPayRows();}
+function removeJobPayRow(idx){if(jobPayRows[idx])jobPayRows[idx].deleted=true;renderJobPayRows();}
 function renderJobPayRows(){
   const types=['Deposit','Progress Payment','Draw','Final Payment','Retainer','Other'];
   const statuses=['Expected','Pending','Received'];
-  document.getElementById('job-payment-rows').innerHTML=jobPayRows.map((r,i)=>
+  document.getElementById('job-payment-rows').innerHTML=jobPayRows.map((r,i)=>({r,i})).filter(x=>!isDeleted(x.r)).map(({r,i})=>
     '<div style="display:grid;grid-template-columns:130px 100px 130px 110px 1fr auto;gap:6px;margin-bottom:6px;align-items:center;">'+
-      '<select class="form-control" style="font-size:14px;padding:5px 8px;" onchange="jobPayRows['+i+'].type=this.value">'+types.map(t=>'<option'+(t===r.type?' selected':'')+'>'+t+'</option>').join('')+'</select>'+
-      '<input class="form-control" style="font-size:14px;padding:5px 8px;" type="number" placeholder="Amount" value="'+(r.amount||'')+'" oninput="jobPayRows['+i+'].amount=parseFloat(this.value)||0;calcJobSummary()">'+
-      '<input class="form-control" style="font-size:14px;padding:5px 8px;" type="date" value="'+(r.date||'')+'" onchange="jobPayRows['+i+'].date=this.value">'+
-      '<select class="form-control" style="font-size:14px;padding:5px 8px;" onchange="jobPayRows['+i+'].status=this.value;calcJobSummary()">'+statuses.map(s=>'<option'+(s===r.status?' selected':'')+'>'+s+'</option>').join('')+'</select>'+
-      '<input class="form-control" style="font-size:14px;padding:5px 8px;" placeholder="Notes" value="'+(r.notes||'')+'" oninput="jobPayRows['+i+'].notes=this.value">'+
+      '<select class="form-control" style="font-size:14px;padding:5px 8px;" onchange="jobPayRows['+i+'].type=this.value">'+types.map(t=>'<option'+(t===r.type?' selected':'')+'>'+rEsc(t)+'</option>').join('')+'</select>'+
+      '<input class="form-control" style="font-size:14px;padding:5px 8px;" type="number" step="0.01" min="0" placeholder="Amount" value="'+(r.amount||'')+'" oninput="jobPayRows['+i+'].amount=parseFloat(this.value)||0;calcJobSummary()">'+
+      '<input class="form-control" style="font-size:14px;padding:5px 8px;" type="date" value="'+rEsc(r.date||'')+'" onchange="jobPayRows['+i+'].date=this.value">'+
+      '<select class="form-control" style="font-size:14px;padding:5px 8px;" onchange="jobPayRows['+i+'].status=this.value;calcJobSummary()">'+statuses.map(s=>'<option'+(s===r.status?' selected':'')+'>'+rEsc(s)+'</option>').join('')+'</select>'+
+      '<input class="form-control" style="font-size:14px;padding:5px 8px;" placeholder="Notes" value="'+rEsc(r.notes||'')+'" oninput="jobPayRows['+i+'].notes=this.value">'+
       '<button class="btn btn-danger btn-sm btn-icon" onclick="removeJobPayRow('+i+')">🗑</button>'+
     '</div>'
   ).join('');
@@ -2822,11 +2889,16 @@ function renderJobPayRows(){
 }
 function calcJobSummary(){
   const val=parseFloat(document.getElementById('j-value')?document.getElementById('j-value').value:0)||0;
-  const sched=jobPayRows.reduce((s,r)=>s+(r.amount||0),0);
-  const rec=jobPayRows.filter(r=>r.status==='Received').reduce((s,r)=>s+(r.amount||0),0);
-  const bal=val-rec;
+  const liveRows=jobPayRows.filter(r=>!isDeleted(r));
+  const sched=liveRows.reduce((s,r)=>s+(r.amount||0),0);
+  const rec=liveRows.filter(r=>r.status==='Received').reduce((s,r)=>s+(r.amount||0),0);
+  const prev=editingJobId?(ACCT.jobs||[]).find(j=>j.id===editingJobId):null;
+  const wo=prev?writeOffTotal(prev):0;
+  const bal=val-rec-wo;
   const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=fmtAmt(v);};
-  set('j-total-display',val);set('j-scheduled-display',sched);set('j-received-display',rec);set('j-balance-display',bal);
+  set('j-total-display',val);set('j-scheduled-display',sched);set('j-received-display',rec);
+  const balEl=document.getElementById('j-balance-display');
+  if(balEl){balEl.textContent=fmtBalance(bal);balEl.style.color=bal<-0.004?'var(--info)':'var(--warning)';}
 }
 
 // ── JOB CRUD ──
@@ -2834,7 +2906,7 @@ let editingJobId=null;
 function openJobModal(id){
   editingJobId=id||null;
   jobPayRows=[];
-  const job=id?(ACCT.jobs||[]).find(j=>j.id===id):null;
+  const job=id?liveJobs().find(j=>j.id===id):null;
   document.getElementById('job-modal-title').textContent=job?'Edit Job':'New Job';
   document.getElementById('job-edit-id').value=id||'';
   ['j-org','j-project','j-value','j-contact','j-start','j-end','j-notes'].forEach(f=>{
@@ -2846,7 +2918,7 @@ function openJobModal(id){
     document.getElementById('j-category').value=job.category||'Training';
     updateJobSubcats();
     document.getElementById('j-subcat').value=job.subcat||'';
-    jobPayRows=JSON.parse(JSON.stringify(job.payments||[]));
+    jobPayRows=JSON.parse(JSON.stringify(livePayments(job)));
   } else {
     addJobPaymentRow();
   }
@@ -2872,7 +2944,7 @@ function saveJob(){
     writeOffs:[],
     created:editingJobId?((ACCT.jobs||[]).find(j=>j.id===editingJobId)||{}).created||Date.now():Date.now()
   };
-  if(editingJobId){const idx=(ACCT.jobs||[]).findIndex(j=>j.id===editingJobId);if(idx>=0){job.writeOffs=ACCT.jobs[idx].writeOffs||[];ACCT.jobs[idx]={...ACCT.jobs[idx],...job};}}
+  if(editingJobId){const idx=(ACCT.jobs||[]).findIndex(j=>j.id===editingJobId);if(idx>=0){const prev=ACCT.jobs[idx];job.writeOffs=prev.writeOffs||[];job.payments=(job.payments||[]).concat((prev.payments||[]).filter(isDeleted));ACCT.jobs[idx]={...prev,...job};}}
   else{if(!ACCT.jobs)ACCT.jobs=[];ACCT.jobs.unshift(job);}
   editingJobId=null;jobPayRows=[];
   saveAcct();renderJobsView();renderForecast();updateAcctAlertBadge();
@@ -2880,8 +2952,8 @@ function saveJob(){
 }
 function deleteJob(id){
   if(!confirm('Delete this job and all associated data?'))return;
-  ACCT.jobs=(ACCT.jobs||[]).filter(j=>j.id!==id);
-  ACCT.expenses=(ACCT.expenses||[]).filter(e=>e.jobId!==id);
+  const job=(ACCT.jobs||[]).find(j=>j.id===id);if(job)job.deleted=true;
+  (ACCT.expenses||[]).forEach(e=>{if(e.jobId===id)e.deleted=true;});
   saveAcct();renderJobsView();renderForecast();toast('Job deleted.');
 }
 
@@ -2891,51 +2963,102 @@ let markPaidJobId=null,markPaidPayIdx=null;
 
 function openJobDetail(jobId){
   acctDetailJobId=jobId;
-  const job=(ACCT.jobs||[]).find(j=>j.id===jobId);if(!job)return;
+  const job=liveJobs().find(j=>j.id===jobId);if(!job)return;
   const rec=getJobReceived(job);
-  const jobExpTotal=getJobExpenses(jobId);
+  const wo=writeOffTotal(job);
   const bal=getJobBalance(job);
-  const margin=rec>0?Math.round(((rec-jobExpTotal)/rec)*100):0;
+  const gm=jobGrossMargin(job);
   const status=getJobStatus(job);
+  const balColor=bal<-0.004?'var(--info)':(bal>0.004?'var(--warning)':'var(--text)');
+  const gmColor=gm.gm>=-0.004?'var(--green-dark)':'var(--danger)';
 
-  let html='<div class="kpi-grid" style="margin-bottom:16px;">'+
+  let html='<div class="kpi-grid" style="margin-bottom:8px;">'+
     '<div class="kpi-card green"><div class="kpi-label">Contract</div><div class="kpi-value">'+fmtAmt(job.value)+'</div></div>'+
     '<div class="kpi-card green"><div class="kpi-label">Received</div><div class="kpi-value" style="color:var(--green-dark)">'+fmtAmt(rec)+'</div></div>'+
-    '<div class="kpi-card warning"><div class="kpi-label">Balance Due</div><div class="kpi-value" style="color:var(--warning)">'+fmtAmt(bal)+'</div></div>'+
-    '<div class="kpi-card"><div class="kpi-label">Net Margin</div><div class="kpi-value" style="color:'+(margin>=0?'var(--green-dark)':'var(--danger)')+'">'+margin+'%</div></div>'+
+    '<div class="kpi-card"><div class="kpi-label">Write-offs</div><div class="kpi-value">'+fmtAmt(wo)+'</div></div>'+
+    '<div class="kpi-card warning"><div class="kpi-label">'+(bal<-0.004?'Overpaid':'Balance')+'</div><div class="kpi-value" style="color:'+balColor+'">'+fmtBalance(bal)+'</div></div>'+
+    '<div class="kpi-card"><div class="kpi-label">Direct costs</div><div class="kpi-value" style="color:var(--danger)">'+fmtAmt(gm.direct)+'</div></div>'+
+    '<div class="kpi-card"><div class="kpi-label">Gross margin</div><div class="kpi-value" style="color:'+gmColor+'">'+fmtAmt(gm.gm)+'</div><div class="kpi-sub">'+(gm.pct===null?'—':gm.pct+'% of contract after write-offs')+'</div></div>'+
   '</div>';
+  html+='<div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">Balance = contract − received payments − write-offs. '+rEsc(status)+'.</div>';
 
   html+='<div style="font-weight:700;font-size:15px;margin-bottom:8px;color:var(--navy);">Payment Schedule</div>';
-  html+='<table class="data-table" style="margin-bottom:20px;"><thead><tr><th>Type</th><th>Amount</th><th>Expected</th><th>Status</th><th>Notes</th><th></th></tr></thead><tbody>';
+  html+='<table class="data-table" style="margin-bottom:20px;"><thead><tr><th>Type</th><th>Amount</th><th>Scheduled</th><th>Received</th><th>Status</th><th>Notes</th><th></th></tr></thead><tbody>';
   (job.payments||[]).forEach((p,i)=>{
+    if(isDeleted(p))return;
     const sc=p.status==='Received'?'tag green':p.status==='Pending'?'tag':' tag';
-    const markBtn=p.status!=='Received'?'<button class="btn btn-success btn-sm" onclick="openMarkPaid(\''+jobId+'\','+i+')">✓ Mark Received</button>':'<span style="color:var(--green-dark);font-size:13px;">✓ Received</span>';
-    html+='<tr><td style="color:var(--warning);font-weight:600;">'+p.type+'</td><td>'+fmtAmt(p.amount)+'</td><td>'+(p.date||'—')+'</td><td><span class="'+sc+'">'+p.status+'</span></td><td style="color:var(--text-muted);font-size:14px;">'+(p.notes||'—')+'</td><td>'+markBtn+'</td></tr>';
+    const markBtn=p.status!=='Received'?'<button class="btn btn-success btn-sm" onclick="openMarkPaid(\''+rEsc(jobId)+'\','+i+')">✓ Mark Received</button>':'<span style="color:var(--green-dark);font-size:13px;">✓ Received</span>';
+    const receivedOn=p.status==='Received'?(p.paidOn||p.date||''):'';
+    html+='<tr><td style="font-weight:600;">'+rEsc(p.type||'—')+'</td><td>'+fmtAmt(p.amount)+'</td><td>'+(p.date?rEsc(formatDate(p.date)):'—')+'</td><td>'+(receivedOn?rEsc(formatDate(receivedOn)):'—')+'</td><td><span class="'+sc+'">'+rEsc(p.status||'')+'</span></td><td style="color:var(--text-muted);font-size:14px;">'+rEsc(p.notes||'—')+'</td><td>'+markBtn+'</td></tr>';
   });
   html+='</tbody></table>';
 
-  const jobExps=(ACCT.expenses||[]).filter(e=>e.jobId===jobId);
+  const wos=liveWriteOffs(job);
+  html+='<div style="font-weight:700;font-size:15px;margin-bottom:8px;color:var(--navy);">Write-offs ('+wos.length+')</div>';
+  if(wos.length){
+    html+='<table class="data-table" style="margin-bottom:20px;"><thead><tr><th>Date</th><th>Amount</th><th>Reason</th><th></th></tr></thead><tbody>';
+    wos.forEach(w=>{
+      html+='<tr><td>'+(w.date?rEsc(formatDate(w.date)):'—')+'</td><td style="font-weight:600;">'+fmtAmt(w.amount)+'</td><td>'+rEsc(w.reason||'—')+'</td><td><button class="btn btn-danger btn-sm btn-icon" onclick="deleteWriteOff(\''+rEsc(jobId)+'\',\''+rEsc(w.id)+'\')">🗑</button></td></tr>';
+    });
+    html+='</tbody></table>';
+  } else {
+    html+='<div style="color:var(--text-muted);font-size:15px;padding:4px 0 16px;">No write-offs. Balance still owed can be written off with the button below.</div>';
+  }
+
+  const jobExps=liveExpenses().filter(e=>e.jobId===jobId);
   html+='<div style="font-weight:700;font-size:15px;margin-bottom:8px;color:var(--navy);">Job Expenses ('+jobExps.length+')</div>';
   if(jobExps.length){
-    html+='<table class="data-table"><thead><tr><th>Description</th><th>Type</th><th>Vendor</th><th>Date</th><th>Amount</th><th></th></tr></thead><tbody>';
+    html+='<table class="data-table"><thead><tr><th>Description</th><th>Type</th><th>Class</th><th>Vendor</th><th>Date</th><th>Amount</th><th></th></tr></thead><tbody>';
     jobExps.forEach(e=>{
-      html+='<tr><td>'+e.desc+'</td><td><span class="tag">'+e.type+'</span></td><td style="color:var(--text-muted);">'+(e.vendor||'—')+'</td><td style="color:var(--text-muted);">'+(e.date||'—')+'</td><td style="color:var(--danger);font-weight:600;">'+fmtAmt(e.amount)+'</td><td><button class="btn btn-danger btn-sm btn-icon" onclick="deleteExpense(\''+e.id+'\');openJobDetail(\''+jobId+'\')">🗑</button></td></tr>';
+      const cls=expenseCostClass(e);
+      html+='<tr><td>'+rEsc(e.desc)+'</td><td><span class="tag">'+rEsc(e.type||'')+'</span></td><td><span class="tag'+(cls==='direct'?' navy':'')+'">'+classLabel(cls)+'</span></td><td style="color:var(--text-muted);">'+rEsc(e.vendor||'—')+'</td><td style="color:var(--text-muted);">'+(e.date?rEsc(formatDate(e.date)):'—')+'</td><td style="color:var(--danger);font-weight:600;">'+fmtAmt(e.amount)+'</td><td><button class="btn btn-danger btn-sm btn-icon" onclick="deleteExpense(\''+rEsc(e.id)+'\');openJobDetail(\''+rEsc(jobId)+'\')">🗑</button></td></tr>';
     });
     html+='</tbody></table>';
   } else {
     html+='<div style="color:var(--text-muted);font-size:15px;padding:12px 0;">No expenses logged yet.</div>';
   }
 
-  document.getElementById('job-detail-title').textContent=job.org+' — '+job.project;
+  document.getElementById('job-detail-title').textContent=(job.org||'')+' — '+(job.project||'');
   document.getElementById('job-detail-body').innerHTML=html;
   document.getElementById('modal-job-detail').classList.add('open');
+}
+function openWriteOffModal(jobId){
+  const job=liveJobs().find(j=>j.id===jobId);if(!job)return;
+  acctDetailJobId=jobId;
+  const info=document.getElementById('wo-job-info');
+  if(info)info.textContent=(job.org||'')+' — '+(job.project||'')+' · balance '+fmtBalance(getJobBalance(job));
+  document.getElementById('wo-date').value=todayStr();
+  document.getElementById('wo-amount').value='';
+  document.getElementById('wo-reason').value='';
+  closeModal('modal-job-detail');
+  document.getElementById('modal-write-off').classList.add('open');
+}
+function saveWriteOff(){
+  const job=(ACCT.jobs||[]).find(j=>j.id===acctDetailJobId&&!isDeleted(j));if(!job)return;
+  const amount=round2(document.getElementById('wo-amount').value);
+  const date=document.getElementById('wo-date').value;
+  const reason=document.getElementById('wo-reason').value.trim();
+  if(!(amount>0)){toast('Enter a write-off amount.',true);return;}
+  if(!date){toast('Enter the write-off date.',true);return;}
+  if(!reason){toast('Enter a reason.',true);return;}
+  if(!job.writeOffs)job.writeOffs=[];
+  job.writeOffs.push({id:acctUID(),amount,date,reason});
+  saveAcct();closeModal('modal-write-off');renderJobsView();try{renderForecast();updateAcctAlertBadge();}catch(e){}
+  openJobDetail(job.id);toast('Write-off recorded.');
+}
+function deleteWriteOff(jobId,woId){
+  if(!confirm('Remove this write-off? It stays in the books as deleted.'))return;
+  const job=(ACCT.jobs||[]).find(j=>j.id===jobId);if(!job)return;
+  const w=(job.writeOffs||[]).find(x=>x.id===woId);if(w)w.deleted=true;
+  saveAcct();renderJobsView();try{renderForecast();updateAcctAlertBadge();}catch(e){}
+  openJobDetail(jobId);
 }
 
 function openMarkPaid(jobId,payIdx){
   markPaidJobId=jobId;markPaidPayIdx=payIdx;
-  const job=(ACCT.jobs||[]).find(j=>j.id===jobId);if(!job)return;
-  const p=job.payments[payIdx];
-  document.getElementById('markpaid-info').innerHTML='<strong>'+p.type+'</strong> &nbsp;·&nbsp; <span style="color:var(--green-dark);">'+fmtAmt(p.amount)+'</span> &nbsp;·&nbsp; '+job.org;
+  const job=liveJobs().find(j=>j.id===jobId);if(!job)return;
+  const p=job.payments[payIdx];if(!p)return;
+  document.getElementById('markpaid-info').innerHTML='<strong>'+rEsc(p.type||'Payment')+'</strong> &nbsp;·&nbsp; <span style="color:var(--green-dark);">'+fmtAmt(p.amount)+'</span> &nbsp;·&nbsp; '+rEsc(job.org||'');
   document.getElementById('markpaid-date').value=todayStr();
   document.getElementById('markpaid-amount').value=p.amount||'';
   document.getElementById('markpaid-notes').value=p.notes||'';
@@ -2944,14 +3067,15 @@ function openMarkPaid(jobId,payIdx){
 }
 function confirmMarkPaid(){
   const job=(ACCT.jobs||[]).find(j=>j.id===markPaidJobId);if(!job)return;
-  const p=job.payments[markPaidPayIdx];if(!p)return;
-  const entered=parseFloat(document.getElementById('markpaid-amount').value)||p.amount;
-  const orig=p.amount;
-  p.date=document.getElementById('markpaid-date').value;
+  const p=job.payments[markPaidPayIdx];if(!p||isDeleted(p))return;
+  const entered=round2(document.getElementById('markpaid-amount').value)||round2(p.amount);
+  const orig=round2(p.amount);
+  const receivedOn=document.getElementById('markpaid-date').value;
+  p.paidOn=receivedOn;
   p.notes=document.getElementById('markpaid-notes').value||p.notes;
-  if(entered<orig){
+  if(entered<orig-0.004){
     p.amount=entered;p.status='Received';
-    job.payments.push({id:acctUID(),type:p.type+' (Balance)',amount:orig-entered,date:'',status:'Expected',notes:'Remaining from partial payment '+p.date});
+    job.payments.push({id:acctUID(),type:(p.type||'Payment')+' (Balance)',amount:round2(orig-entered),date:p.date||'',status:'Expected',notes:'Remaining from partial payment '+(receivedOn||'')});
     toast('Partial payment recorded — balance row added.');
   } else {p.amount=entered;p.status='Received';toast('✅ Payment marked received.');}
   saveAcct();closeModal('modal-mark-paid');renderJobsView();renderForecast();updateAcctAlertBadge();
@@ -2960,10 +3084,10 @@ function confirmMarkPaid(){
 
 function addPaymentToJob(jobId){
   acctDetailJobId=jobId;
-  const job=(ACCT.jobs||[]).find(j=>j.id===jobId);if(!job)return;
+  const job=liveJobs().find(j=>j.id===jobId);if(!job)return;
   const rec=getJobReceived(job);
   const bal=getJobBalance(job);
-  document.getElementById('addpayment-job-info').innerHTML='<strong>'+job.org+' — '+job.project+'</strong><br>Contract: '+fmtAmt(job.value)+' &nbsp;·&nbsp; Received: '+fmtAmt(rec)+' &nbsp;·&nbsp; <span style="color:var(--warning);">Balance: '+fmtAmt(bal)+'</span>';
+  document.getElementById('addpayment-job-info').innerHTML='<strong>'+rEsc(job.org||'')+' — '+rEsc(job.project||'')+'</strong><br>Contract: '+fmtAmt(job.value)+' &nbsp;·&nbsp; Received: '+fmtAmt(rec)+' &nbsp;·&nbsp; <span style="color:'+(bal<-0.004?'var(--info)':'var(--warning)')+';">Balance: '+fmtBalance(bal)+'</span>';
   document.getElementById('ap-amount').value='';
   document.getElementById('ap-notes').value='';
   document.getElementById('ap-date').value=todayStr();
@@ -2971,49 +3095,58 @@ function addPaymentToJob(jobId){
   document.getElementById('modal-add-payment').classList.add('open');
 }
 function saveAddPayment(){
-  const job=(ACCT.jobs||[]).find(j=>j.id===acctDetailJobId);if(!job)return;
-  const amount=parseFloat(document.getElementById('ap-amount').value)||0;
-  if(!amount){toast('Enter an amount.',true);return;}
-  job.payments.push({id:acctUID(),type:document.getElementById('ap-type').value,amount,date:document.getElementById('ap-date').value,status:document.getElementById('ap-status').value,notes:document.getElementById('ap-notes').value.trim()});
+  const job=(ACCT.jobs||[]).find(j=>j.id===acctDetailJobId&&!isDeleted(j));if(!job)return;
+  const amount=round2(document.getElementById('ap-amount').value);
+  if(!(amount>0)){toast('Enter an amount.',true);return;}
+  const status=document.getElementById('ap-status').value;
+  const scheduled=document.getElementById('ap-date').value;
+  const row={id:acctUID(),type:document.getElementById('ap-type').value,amount,date:status==='Received'?'':scheduled,status,notes:document.getElementById('ap-notes').value.trim()};
+  if(status==='Received'){row.paidOn=scheduled||todayStr();row.date='';}
+  if(!job.payments)job.payments=[];
+  job.payments.push(row);
   saveAcct();closeModal('modal-add-payment');renderJobsView();renderForecast();updateAcctAlertBadge();
   openJobDetail(acctDetailJobId);toast('Payment added.');
 }
 
 // ── JOBS RENDER ──
 function renderJobsView(){
-  const jobs=ACCT.jobs||[];
+  const jobs=liveJobs();
   const statusF=(document.getElementById('jobs-filter-status')||{}).value||'';
   const catF=(document.getElementById('jobs-filter-cat')||{}).value||'';
   const filtered=jobs.filter(j=>{
     const s=getJobStatus(j);
     return(!statusF||s===statusF)&&(!catF||j.category===catF);
   });
-  const totalContract=jobs.reduce((s,j)=>s+j.value,0);
+  const totalContract=jobs.reduce((s,j)=>s+round2(j.value),0);
   const totalRec=jobs.reduce((s,j)=>s+getJobReceived(j),0);
-  const totalBal=jobs.reduce((s,j)=>s+getJobBalance(j),0);
-  const totalExp=jobs.reduce((s,j)=>s+getJobExpenses(j.id),0);
+  const bals=jobs.map(getJobBalance);
+  const totalOwed=bals.filter(b=>b>0.004).reduce((s,b)=>s+b,0);
+  const totalCredit=bals.filter(b=>b<-0.004).reduce((s,b)=>s+b,0);
+  const totalDirect=jobs.reduce((s,j)=>s+getJobDirectCosts(j.id),0);
   const kpiEl=document.getElementById('jobs-kpis');
   if(kpiEl)kpiEl.innerHTML=
     '<div class="kpi-card"><div class="kpi-label">Total Contracted</div><div class="kpi-value">'+fmtAmt(totalContract)+'</div></div>'+
     '<div class="kpi-card green"><div class="kpi-label">Total Received</div><div class="kpi-value" style="color:var(--green-dark);">'+fmtAmt(totalRec)+'</div></div>'+
-    '<div class="kpi-card warning"><div class="kpi-label">Outstanding Balance</div><div class="kpi-value" style="color:var(--warning);">'+fmtAmt(totalBal)+'</div></div>'+
-    '<div class="kpi-card"><div class="kpi-label">Total Job Expenses</div><div class="kpi-value" style="color:var(--danger);">'+fmtAmt(totalExp)+'</div></div>';
+    '<div class="kpi-card warning"><div class="kpi-label">Outstanding Balance</div><div class="kpi-value" style="color:var(--warning);">'+fmtAmt(totalOwed)+'</div>'+(totalCredit<-0.004?'<div class="kpi-sub">Overpaid '+fmtAmt(-totalCredit)+'</div>':'')+'</div>'+
+    '<div class="kpi-card"><div class="kpi-label">Direct costs</div><div class="kpi-value" style="color:var(--danger);">'+fmtAmt(totalDirect)+'</div></div>';
   const tbody=document.getElementById('jobs-tbody');if(!tbody)return;
-  if(!filtered.length){tbody.innerHTML='<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">💼</div><p>No jobs yet. Click + New Job to get started.</p></div></td></tr>';return;}
+  if(!filtered.length){tbody.innerHTML='<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">💼</div><p>No jobs yet. Click + New Job to get started.</p></div></td></tr>';return;}
   tbody.innerHTML=filtered.map(j=>{
-    const rec=getJobReceived(j);const bal=getJobBalance(j);const exp=getJobExpenses(j.id);
-    const s=getJobStatus(j);const margin=rec>0?Math.round(((rec-exp)/rec)*100):null;
-    return '<tr style="cursor:pointer;" onclick="openJobDetail(\''+j.id+'\')">'+
-      '<td><div style="font-weight:600;">'+j.org+'</div><div style="font-size:13px;color:var(--text-muted);">'+j.project+'</div></td>'+
-      '<td><span class="tag navy">'+j.category+'</span><div style="font-size:13px;color:var(--text-muted);margin-top:2px;">'+j.subcat+'</div></td>'+
+    const rec=getJobReceived(j);const bal=getJobBalance(j);const gm=jobGrossMargin(j);
+    const s=getJobStatus(j);
+    const gmColor=gm.gm>=-0.004?'var(--green-dark)':'var(--danger)';
+    return '<tr style="cursor:pointer;" onclick="openJobDetail(\''+rEsc(j.id)+'\')">'+
+      '<td><div style="font-weight:600;">'+rEsc(j.org||'')+'</div><div style="font-size:13px;color:var(--text-muted);">'+rEsc(j.project||'')+'</div></td>'+
+      '<td><span class="tag navy">'+rEsc(j.category||'')+'</span><div style="font-size:13px;color:var(--text-muted);margin-top:2px;">'+rEsc(j.subcat||'')+'</div></td>'+
       '<td style="font-weight:600;">'+fmtAmt(j.value)+'</td>'+
       '<td style="color:var(--green-dark);font-weight:600;">'+fmtAmt(rec)+'</td>'+
-      '<td style="color:var(--warning);font-weight:600;">'+fmtAmt(bal)+'</td>'+
-      statusChip(s)+
-      '<td>'+(margin!==null?'<span style="color:'+(margin>=0?'var(--green-dark)':'var(--danger)')+';">'+margin+'%</span>':'—')+'</td>'+
+      '<td style="color:'+(bal<-0.004?'var(--info)':'var(--warning)')+';font-weight:600;">'+fmtBalance(bal)+'</td>'+
+      '<td style="color:var(--danger);font-weight:600;">'+fmtAmt(gm.direct)+'</td>'+
+      '<td>'+(gm.pct===null&&Math.abs(gm.gm)<0.005?'—':'<span style="color:'+gmColor+';font-weight:600;">'+fmtAmt(gm.gm)+'</span>'+(gm.pct===null?'':'<div style="font-size:12px;color:'+gmColor+';">'+gm.pct+'%</div>'))+'</td>'+
+      '<td>'+statusChip(s)+'</td>'+
       '<td onclick="event.stopPropagation();" style="white-space:nowrap;">'+
-        '<button class="btn btn-outline btn-sm btn-icon" onclick="openJobModal(\''+j.id+'\')" title="Edit">✏️</button> '+
-        '<button class="btn btn-danger btn-sm btn-icon" onclick="deleteJob(\''+j.id+'\')" title="Delete">🗑</button>'+
+        '<button class="btn btn-outline btn-sm btn-icon" onclick="openJobModal(\''+rEsc(j.id)+'\')" title="Edit">✏️</button> '+
+        '<button class="btn btn-danger btn-sm btn-icon" onclick="deleteJob(\''+rEsc(j.id)+'\')" title="Delete">🗑</button>'+
       '</td>'+
     '</tr>';
   }).join('');
@@ -3028,11 +3161,14 @@ function openExpenseModal(jobId){
   ['exp-desc','exp-amount','exp-vendor','exp-notes'].forEach(f=>{const el=document.getElementById(f);if(el)el.value='';});
   document.getElementById('exp-date').value=todayStr();
   document.getElementById('exp-deductible').value='yes';
+  fillExpenseTypeSelect(EXP_TYPES[0]);
   populateExpJobLink(jobId||null);
+  const cls=document.getElementById('exp-class');if(cls)cls.dataset.touched='';
+  syncExpenseClassDefault(true);
   document.getElementById('modal-acct-expense').classList.add('open');
 }
 function editExpense(id){
-  const e=(ACCT.expenses||[]).find(x=>x.id===id);if(!e)return;
+  const e=liveExpenses().find(x=>x.id===id);if(!e)return;
   editingExpId=id;
   document.getElementById('expense-modal-title').textContent='Edit Expense';
   document.getElementById('exp-edit-id').value=id;
@@ -3041,19 +3177,24 @@ function editExpense(id){
   document.getElementById('exp-vendor').value=e.vendor||'';
   document.getElementById('exp-date').value=e.date||'';
   document.getElementById('exp-notes').value=e.notes||'';
-  document.getElementById('exp-type').value=e.type||'Other';
+  fillExpenseTypeSelect(e.type||'Other');
   document.getElementById('exp-deductible').value=e.deductible||'yes';
   populateExpJobLink(e.jobId||null);
+  const cls=document.getElementById('exp-class');
+  if(cls){cls.value=expenseCostClass(e);cls.dataset.touched='1';}
   document.getElementById('modal-acct-expense').classList.add('open');
 }
 function saveExpense(){
   const desc=document.getElementById('exp-desc').value.trim();
-  const amount=parseFloat(document.getElementById('exp-amount').value)||0;
+  const amount=round2(document.getElementById('exp-amount').value);
   if(!desc){toast('Enter a description.',true);return;}
-  if(!amount){toast('Enter an amount.',true);return;}
+  if(!(amount>0)){toast('Enter an amount.',true);return;}
   const jobId=document.getElementById('exp-job-link').value||null;
-  const linkedJob=jobId?(ACCT.jobs||[]).find(j=>j.id===jobId):null;
+  const linkedJob=jobId?liveJobs().find(j=>j.id===jobId):null;
+  const prev=editingExpId?(ACCT.expenses||[]).find(x=>x.id===editingExpId):null;
+  const costClass=document.getElementById('exp-class').value==='indirect'?'indirect':'direct';
   const entry={
+    ...(prev||{}),
     id:editingExpId||acctUID(),
     desc,amount,
     type:document.getElementById('exp-type').value,
@@ -3063,58 +3204,81 @@ function saveExpense(){
     notes:document.getElementById('exp-notes').value.trim(),
     jobId:jobId||null,
     jobLabel:linkedJob?(linkedJob.org+' — '+linkedJob.project):null,
-    created:editingExpId?((ACCT.expenses||[]).find(x=>x.id===editingExpId)||{}).created||Date.now():Date.now()
+    costClass,
+    created:prev?(prev.created||Date.now()):Date.now()
   };
   if(editingExpId){const idx=(ACCT.expenses||[]).findIndex(x=>x.id===editingExpId);if(idx>=0)ACCT.expenses[idx]=entry;}
   else{if(!ACCT.expenses)ACCT.expenses=[];ACCT.expenses.unshift(entry);}
   editingExpId=null;
   saveAcct();renderExpensesView();renderJobsView();renderForecast();
   closeModal('modal-acct-expense');toast('✅ Expense saved.');
+  if(acctDetailJobId&&document.getElementById('modal-job-detail').classList.contains('open'))openJobDetail(acctDetailJobId);
 }
 function deleteExpense(id){
-  if(!confirm('Delete this expense?'))return;
-  ACCT.expenses=(ACCT.expenses||[]).filter(e=>e.id!==id);
+  if(!confirm('Delete this expense? It stays in the books as deleted.'))return;
+  const e=(ACCT.expenses||[]).find(x=>x.id===id);if(e)e.deleted=true;
   saveAcct();renderExpensesView();renderJobsView();renderForecast();toast('Expense deleted.');
 }
 function renderExpensesView(){
-  const exps=ACCT.expenses||[];
-  const typeF=(document.getElementById('exp-filter-type')||{}).value||'';
+  const exps=liveExpenses();
+  const typeSel=document.getElementById('exp-filter-type');
+  if(typeSel){const cur=typeSel.value;typeSel.innerHTML='<option value="">All Types</option>'+expenseTypeOptions('');typeSel.value=cur;}
+  const typeF=(typeSel||{}).value||'';
+  const classF=(document.getElementById('exp-filter-class')||{}).value||'';
   const jobF=(document.getElementById('exp-filter-job')||{}).value||'';
-  const filtered=exps.filter(e=>(!typeF||e.type===typeF)&&(!jobF||e.jobId===jobF));
-  const total=exps.reduce((s,e)=>s+(e.amount||0),0);
-  const thisMonth=exps.filter(e=>e.date&&e.date.startsWith(todayStr().slice(0,7))).reduce((s,e)=>s+(e.amount||0),0);
-  const deductible=exps.filter(e=>e.deductible!=='no').reduce((s,e)=>s+(e.amount||0),0);
+  const filtered=exps.filter(e=>(!typeF||e.type===typeF)&&(!classF||expenseCostClass(e)===classF)&&(!jobF||e.jobId===jobF));
+  const total=exps.reduce((s,e)=>s+round2(e.amount),0);
+  const direct=exps.filter(e=>expenseCostClass(e)==='direct').reduce((s,e)=>s+round2(e.amount),0);
+  const indirect=exps.filter(e=>expenseCostClass(e)==='indirect').reduce((s,e)=>s+round2(e.amount),0);
+  const thisMonth=exps.filter(e=>e.date&&e.date.startsWith(todayStr().slice(0,7))).reduce((s,e)=>s+round2(e.amount),0);
   const kpiEl=document.getElementById('expenses-kpis');
   if(kpiEl)kpiEl.innerHTML=
     '<div class="kpi-card danger"><div class="kpi-label">Total Expenses</div><div class="kpi-value" style="color:var(--danger);">'+fmtAmt(total)+'</div></div>'+
-    '<div class="kpi-card warning"><div class="kpi-label">This Month</div><div class="kpi-value" style="color:var(--warning);">'+fmtAmt(thisMonth)+'</div></div>'+
-    '<div class="kpi-card green"><div class="kpi-label">Deductible</div><div class="kpi-value" style="color:var(--green-dark);">'+fmtAmt(deductible)+'</div></div>'+
-    '<div class="kpi-card"><div class="kpi-label">Job-Linked</div><div class="kpi-value">'+exps.filter(e=>e.jobId).length+'</div></div>';
-  // populate job filter dropdown
+    '<div class="kpi-card"><div class="kpi-label">Direct</div><div class="kpi-value">'+fmtAmt(direct)+'</div><div class="kpi-sub">job costs</div></div>'+
+    '<div class="kpi-card"><div class="kpi-label">Indirect</div><div class="kpi-value">'+fmtAmt(indirect)+'</div><div class="kpi-sub">overhead-type expenses</div></div>'+
+    '<div class="kpi-card warning"><div class="kpi-label">This Month</div><div class="kpi-value" style="color:var(--warning);">'+fmtAmt(thisMonth)+'</div></div>';
   const jobSel=document.getElementById('exp-filter-job');
-  if(jobSel){const cur=jobSel.value;jobSel.innerHTML='<option value="">All Jobs</option>'+(ACCT.jobs||[]).map(j=>'<option value="'+j.id+'"'+(j.id===cur?' selected':'')+'>'+j.org+' — '+j.project+'</option>').join('');}
+  if(jobSel){const cur=jobSel.value;jobSel.innerHTML='<option value="">All Jobs</option>'+liveJobs().map(j=>'<option value="'+rEsc(j.id)+'"'+(j.id===cur?' selected':'')+'>'+rEsc(j.org)+' — '+rEsc(j.project)+'</option>').join('');}
   const tbody=document.getElementById('expenses-tbody');if(!tbody)return;
-  if(!filtered.length){tbody.innerHTML='<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">🧾</div><p>No expenses yet.</p></div></td></tr>';return;}
-  tbody.innerHTML=filtered.map(e=>'<tr>'+
-    '<td><div style="font-weight:500;">'+e.desc+'</div>'+(e.jobLabel?'<div style="font-size:13px;color:var(--info);">🔗 '+e.jobLabel+'</div>':'')+'</td>'+
-    '<td><span class="tag">'+e.type+'</span></td>'+
-    '<td style="font-size:14px;color:var(--text-muted);">'+(e.jobLabel||'—')+'</td>'+
-    '<td style="color:var(--text-muted);font-size:14px;">'+(e.vendor||'—')+'</td>'+
-    '<td style="color:var(--text-muted);">'+(e.date||'—')+'</td>'+
+  if(!filtered.length){tbody.innerHTML='<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">🧾</div><p>No expenses yet.</p></div></td></tr>';return;}
+  tbody.innerHTML=filtered.map(e=>{
+    const cls=expenseCostClass(e);
+    return '<tr>'+
+    '<td><div style="font-weight:500;">'+rEsc(e.desc)+'</div>'+(e.jobLabel?'<div style="font-size:13px;color:var(--info);">🔗 '+rEsc(e.jobLabel)+'</div>':'')+'</td>'+
+    '<td><span class="tag">'+rEsc(e.type||'')+'</span></td>'+
+    '<td><span class="tag'+(cls==='direct'?' navy':'')+'">'+classLabel(cls)+'</span></td>'+
+    '<td style="font-size:14px;color:var(--text-muted);">'+rEsc(e.jobLabel||'—')+'</td>'+
+    '<td style="color:var(--text-muted);font-size:14px;">'+rEsc(e.vendor||'—')+'</td>'+
+    '<td style="color:var(--text-muted);">'+(e.date?rEsc(formatDate(e.date)):'—')+'</td>'+
     '<td style="color:var(--danger);font-weight:600;">'+fmtAmt(e.amount)+'</td>'+
     '<td>'+deductChip(e.deductible)+'</td>'+
     '<td style="white-space:nowrap;">'+
-      '<button class="btn btn-outline btn-sm btn-icon" onclick="editExpense(\''+e.id+'\')" title="Edit">✏️</button> '+
-      '<button class="btn btn-danger btn-sm btn-icon" onclick="deleteExpense(\''+e.id+'\')" title="Delete">🗑</button>'+
-    '</td></tr>'
-  ).join('');
+      '<button class="btn btn-outline btn-sm btn-icon" onclick="editExpense(\''+rEsc(e.id)+'\')" title="Edit">✏️</button> '+
+      '<button class="btn btn-danger btn-sm btn-icon" onclick="deleteExpense(\''+rEsc(e.id)+'\')" title="Delete">🗑</button>'+
+    '</td></tr>';
+  }).join('');
 }
 
 // ── OVERHEAD CRUD ──
 let editingOhId=null;
+function ohLooksNonExpense(o){
+  const blob=[o&&o.name,o&&o.category,o&&o.vendor,o&&o.notes].join(' ').toLowerCase();
+  if(/\b(credit\s*cards?|mastercard|master\s*card|american express|amex|visa|card payment|cc payment)\b/.test(blob))return'cc-payment';
+  if(/\b(transfers?|xfters?|xfers?|owner'?s?\s+draws?|distributions?|internal transfer)\b/.test(blob))return'transfer';
+  return'';
+}
+function overheadKind(o){
+  if(o&&(o.costKind==='expense'||o.costKind==='transfer'||o.costKind==='cc-payment'))return o.costKind;
+  return ohLooksNonExpense(o)||'expense';
+}
+function overheadIsExcluded(o){
+  if(!o||isDeleted(o))return true;
+  const k=overheadKind(o);
+  return k==='transfer'||k==='cc-payment';
+}
 function openOverheadModal(id){
   editingOhId=id||null;
-  const oh=id?(ACCT.overhead||[]).find(o=>o.id===id):null;
+  const oh=id?liveOverhead().find(o=>o.id===id):null;
   document.getElementById('overhead-modal-title').textContent=oh?'Edit Overhead':'Add Overhead Item';
   document.getElementById('oh-edit-id').value=id||'';
   ['oh-name','oh-amount','oh-vendor','oh-notes'].forEach(f=>{const el=document.getElementById(f);if(el)el.value=oh?oh[f.slice(3)]||'':'';});
@@ -3123,14 +3287,18 @@ function openOverheadModal(id){
   document.getElementById('oh-due').value=oh?oh.due||todayStr():todayStr();
   document.getElementById('oh-status').value=oh?oh.status||'active':'active';
   document.getElementById('oh-deductible').value=oh?oh.deductible||'yes':'yes';
+  const kind=document.getElementById('oh-kind');if(kind)kind.value=oh?overheadKind(oh):'expense';
   document.getElementById('modal-acct-overhead').classList.add('open');
 }
 function saveOverhead(){
   const name=document.getElementById('oh-name').value.trim();
-  const amount=parseFloat(document.getElementById('oh-amount').value)||0;
+  const amount=round2(document.getElementById('oh-amount').value);
   if(!name){toast('Enter item name.',true);return;}
-  if(!amount){toast('Enter an amount.',true);return;}
+  if(!(amount>0)){toast('Enter an amount.',true);return;}
+  const prev=editingOhId?(ACCT.overhead||[]).find(o=>o.id===editingOhId):null;
+  const kind=document.getElementById('oh-kind').value;
   const entry={
+    ...(prev||{}),
     id:editingOhId||acctUID(),
     name,amount,
     category:document.getElementById('oh-category').value,
@@ -3140,7 +3308,8 @@ function saveOverhead(){
     status:document.getElementById('oh-status').value,
     deductible:document.getElementById('oh-deductible').value,
     notes:document.getElementById('oh-notes').value.trim(),
-    created:editingOhId?((ACCT.overhead||[]).find(o=>o.id===editingOhId)||{}).created||Date.now():Date.now()
+    costKind:kind==='transfer'||kind==='cc-payment'?kind:'expense',
+    created:prev?(prev.created||Date.now()):Date.now()
   };
   if(editingOhId){const idx=(ACCT.overhead||[]).findIndex(o=>o.id===editingOhId);if(idx>=0)ACCT.overhead[idx]=entry;}
   else{if(!ACCT.overhead)ACCT.overhead=[];ACCT.overhead.unshift(entry);}
@@ -3149,8 +3318,8 @@ function saveOverhead(){
   closeModal('modal-acct-overhead');toast('✅ Overhead item saved.');
 }
 function deleteOverhead(id){
-  if(!confirm('Delete this overhead item?'))return;
-  ACCT.overhead=(ACCT.overhead||[]).filter(o=>o.id!==id);
+  if(!confirm('Delete this overhead item? It stays in the books as deleted.'))return;
+  const o=(ACCT.overhead||[]).find(x=>x.id===id);if(o)o.deleted=true;
   saveAcct();renderOverheadView();renderForecast();toast('Deleted.');
 }
 function getMonthlyEquiv(oh){
@@ -3161,15 +3330,15 @@ function getMonthlyEquiv(oh){
   return 0; // one-time
 }
 function renderOverheadView(){
-  const overhead=ACCT.overhead||[];
+  const overhead=liveOverhead();
   const catF=(document.getElementById('oh-filter-cat')||{}).value||'';
   const freqF=(document.getElementById('oh-filter-freq')||{}).value||'';
   const filtered=overhead.filter(o=>(!catF||o.category===catF)&&(!freqF||o.frequency===freqF));
-  const active=overhead.filter(o=>o.status==='active');
+  const active=overhead.filter(o=>o.status==='active'&&!overheadIsExcluded(o));
   const monthlyTotal=active.reduce((s,o)=>s+getMonthlyEquiv(o),0);
   const annualTotal=active.filter(o=>o.frequency!=='one-time').reduce((s,o)=>s+o.amount*(o.frequency==='monthly'?12:o.frequency==='quarterly'?4:1),0);
   const today90d=today90();
-  const due90=overhead.filter(o=>o.due&&o.due<=today90d&&o.status!=='paid').length;
+  const due90=overhead.filter(o=>o.due&&o.due<=today90d&&o.status!=='paid'&&!overheadIsExcluded(o)).length;
   const kpiEl=document.getElementById('overhead-kpis');
   if(kpiEl)kpiEl.innerHTML=
     '<div class="kpi-card"><div class="kpi-label">Monthly Overhead</div><div class="kpi-value" style="color:var(--danger);">'+fmtAmt(monthlyTotal)+'</div></div>'+
@@ -3184,17 +3353,19 @@ function renderOverheadView(){
     const soon=o.due&&o.due>=t&&o.due<=addDays(t,14)&&o.status==='active';
     const dueStyle=overdue?'color:var(--danger);font-weight:700;':soon?'color:var(--warning);font-weight:600;':'color:var(--text-muted);';
     const sc=o.status==='active'?'tag green':o.status==='paid'?'tag navy':'tag';
+    const excluded=overheadIsExcluded(o);
+    const kindTag=excluded?'<div style="font-size:12px;color:var(--text-muted);">Excluded from profit ('+(overheadKind(o)==='cc-payment'?'credit card payment':'transfer')+')</div>':'';
     return '<tr>'+
-      '<td><div style="font-weight:500;">'+o.name+'</div>'+(o.vendor?'<div style="font-size:13px;color:var(--text-muted);">'+o.vendor+'</div>':'')+'</td>'+
-      '<td><span class="tag">'+o.category+'</span></td>'+
-      '<td style="color:var(--text-muted);text-transform:capitalize;">'+o.frequency+'</td>'+
-      '<td><span style="'+dueStyle+'">'+(o.due||'—')+(overdue?' ⚠️':soon?' 🔔':'')+'</span></td>'+
+      '<td><div style="font-weight:500;">'+rEsc(o.name)+'</div>'+(o.vendor?'<div style="font-size:13px;color:var(--text-muted);">'+rEsc(o.vendor)+'</div>':'')+kindTag+'</td>'+
+      '<td><span class="tag">'+rEsc(o.category||'')+'</span></td>'+
+      '<td style="color:var(--text-muted);text-transform:capitalize;">'+rEsc(o.frequency||'')+'</td>'+
+      '<td><span style="'+dueStyle+'">'+(o.due?rEsc(formatDate(o.due)):'—')+(overdue?' ⚠️':soon?' 🔔':'')+'</span></td>'+
       '<td style="font-weight:600;color:var(--danger);">'+fmtAmt(o.amount)+'</td>'+
       '<td>'+deductChip(o.deductible)+'</td>'+
-      '<td><span class="'+sc+'">'+o.status+'</span></td>'+
+      '<td><span class="'+sc+'">'+rEsc(o.status||'')+'</span></td>'+
       '<td style="white-space:nowrap;">'+
-        '<button class="btn btn-outline btn-sm btn-icon" onclick="openOverheadModal(\''+o.id+'\')" title="Edit">✏️</button> '+
-        '<button class="btn btn-danger btn-sm btn-icon" onclick="deleteOverhead(\''+o.id+'\')" title="Delete">🗑</button>'+
+        '<button class="btn btn-outline btn-sm btn-icon" onclick="openOverheadModal(\''+rEsc(o.id)+'\')" title="Edit">✏️</button> '+
+        '<button class="btn btn-danger btn-sm btn-icon" onclick="deleteOverhead(\''+rEsc(o.id)+'\')" title="Delete">🗑</button>'+
       '</td></tr>';
   }).join('');
 }
@@ -3215,14 +3386,15 @@ function fcSetTerms(v){const n=parseInt(v,10);if(!isFinite(n)||n<0||n>365){toast
 function fcAddMonths(d,n){const [y,m,dd]=d.split('-').map(Number);const t=new Date(Date.UTC(y,m-1+n,1));const last=new Date(Date.UTC(t.getUTCFullYear(),t.getUTCMonth()+1,0)).getUTCDate();return t.getUTCFullYear()+'-'+String(t.getUTCMonth()+1).padStart(2,'0')+'-'+String(Math.min(dd,last)).padStart(2,'0');}
 function fcBuild(from,to){
   const today=todayStr();const terms=fcTerms();const inWin=d=>d>=from&&d<=to;
-  const income=[],overdue=[],possible=[],outflow=[];
+  const income=[],overdue=[],possible=[],outflow=[],undated=[];
   // contracted: accounting jobs
-  (ACCT.jobs||[]).forEach(j=>{
-    const label=(j.org||'')+' — '+(j.project||'');const pays=j.payments||[];
+  liveJobs().forEach(j=>{
+    const label=(j.org||'')+' — '+(j.project||'');const pays=livePayments(j);
     pays.forEach(p=>{if(p.status==='Received'||!(rNum(p.amount)>0))return;
-      const item={label,type:p.type||'Payment',date:p.date||'',amount:rNum(p.amount),source:'Scheduled',status:p.status||'Expected',jobId:j.id};
-      if(p.date&&p.date<today)overdue.push(item);else if(p.date&&inWin(p.date))income.push(item);});
-    const wo=(j.writeOffs||[]).reduce((s,w)=>s+rNum(w.amount),0);
+      const item={label,type:p.type||'Payment',date:p.date||'',amount:rNum(p.amount),source:p.date?'Scheduled':'Undated',status:p.status||'Expected',jobId:j.id};
+      if(!p.date)undated.push(item);
+      else if(p.date<today)overdue.push(item);else if(inWin(p.date))income.push(item);});
+    const wo=writeOffTotal(j);
     const rest=rNum(j.value)-pays.reduce((s,p)=>s+rNum(p.amount),0)-wo;
     if(rest>0.5){const d=addDays(j.end||j.start||today,terms);const item={label,type:pays.length?'Unscheduled balance':'Full contract',date:d,amount:rest,source:'Estimated',status:'Estimated',jobId:j.id};
       if(d<today)overdue.push(item);else if(inWin(d))income.push(item);}
@@ -3240,8 +3412,8 @@ function fcBuild(from,to){
     if(inWin(dt)&&rNum(d.value)>0&&prob>0)possible.push({label:(d.org||'')+' — '+(d.title||''),stage:d.stage||'',value:rNum(d.value),prob,amount:rNum(d.value)*prob/100,date:dt,stale,dealId:d.id});
   });
   // outflow: overhead occurrences
-  (ACCT.overhead||[]).forEach(o=>{
-    if(o.status==='paused'||!(rNum(o.amount)>0))return;
+  liveOverhead().forEach(o=>{
+    if(o.status==='paused'||overheadIsExcluded(o)||!(rNum(o.amount)>0))return;
     const step={monthly:1,quarterly:3,annual:12}[o.frequency];
     if(!step){if(o.status!=='paid'&&o.due&&inWin(o.due))outflow.push({label:o.name,type:'Overhead',jobLabel:o.category||'',date:o.due,amount:rNum(o.amount),frequency:o.frequency||'one-time',vendor:o.vendor||''});return;}
     let d=o.due||from.slice(0,8)+'01';let guard=0;
@@ -3250,10 +3422,11 @@ function fcBuild(from,to){
     while(d<=to&&guard++<1800){if(!(o.status==='paid'&&d===o.due))outflow.push({label:o.name,type:'Overhead',jobLabel:o.category||'',date:d,amount:rNum(o.amount),frequency:o.frequency,vendor:o.vendor||''});d=fcAddMonths(d,step);}
   });
   // outflow: expenses already entered with a future date
-  (ACCT.expenses||[]).forEach(e=>{if(e.date&&e.date>=today&&inWin(e.date)){const job=e.jobId?(ACCT.jobs||[]).find(j=>j.id===e.jobId):null;outflow.push({label:e.desc,type:e.type||'Expense',jobLabel:job?(job.org+' — '+job.project):'—',date:e.date,amount:rNum(e.amount)});}});
-  const by=(a,b)=>a.date.localeCompare(b.date);[income,overdue,possible,outflow].forEach(l=>l.sort(by));
+  liveExpenses().forEach(e=>{if(e.date&&e.date>=today&&inWin(e.date)){const job=e.jobId?liveJobs().find(j=>j.id===e.jobId):null;outflow.push({label:e.desc,type:e.type||'Expense',jobLabel:job?(job.org+' — '+job.project):'—',date:e.date,amount:rNum(e.amount)});}});
+  const by=(a,b)=>String(a.date||'').localeCompare(String(b.date||''));[income,overdue,possible,outflow].forEach(l=>l.sort(by));
+  undated.sort((a,b)=>String(a.label||'').localeCompare(String(b.label||'')));
   const sum=l=>l.reduce((s,x)=>s+x.amount,0);
-  return{income,overdue,possible,outflow,totIn:sum(income),totOver:sum(overdue),totPossible:sum(possible),totOut:sum(outflow),terms};
+  return{income,overdue,possible,outflow,undated,totIn:sum(income),totOver:sum(overdue),totPossible:sum(possible),totOut:sum(outflow),totUndated:sum(undated),terms};
 }
 function fcDue(date,t){const days=daysBetween(t,date);const u=days<=7?'color:var(--danger);font-weight:700;':days<=30?'color:var(--warning);font-weight:600;':'';return '<span style="'+u+'">'+formatDate(date)+'</span>'+(days>=0&&days<=14?' <span style="font-size:12px;color:var(--warning);">('+days+'d)</span>':'');}
 function renderForecast(){
@@ -3262,16 +3435,17 @@ function renderForecast(){
   const net=F.totIn-F.totOut;
   const kpiEl=document.getElementById('forecast-kpis');
   if(kpiEl)kpiEl.innerHTML=
-    '<div class="kpi-card green"><div class="kpi-label">Contracted Income (90d)</div><div class="kpi-value" style="color:var(--green-dark);">'+rMoney(F.totIn)+'</div><div class="kpi-sub">'+F.income.length+' payment'+(F.income.length===1?'':'s')+'</div></div>'+
+    '<div class="kpi-card green"><div class="kpi-label">Contracted Income (90d)</div><div class="kpi-value" style="color:var(--green-dark);">'+rMoney(F.totIn)+'</div><div class="kpi-sub">'+F.income.length+' payment'+(F.income.length===1?'':'s')+(F.undated.length?' · '+F.undated.length+' undated':'')+'</div></div>'+
     '<div class="kpi-card danger"><div class="kpi-label">Expected Outflow (90d)</div><div class="kpi-value" style="color:var(--danger);">'+rMoney(F.totOut)+'</div><div class="kpi-sub">'+F.outflow.length+' item'+(F.outflow.length===1?'':'s')+'</div></div>'+
     '<div class="kpi-card '+(net>=0?'green':'danger')+'"><div class="kpi-label">Net Forecast (90d)</div><div class="kpi-value" style="color:'+(net>=0?'var(--green-dark)':'var(--danger)')+';">'+rMoney(net)+'</div><div class="kpi-sub">contracted only</div></div>'+
     '<div class="kpi-card"><div class="kpi-label">Possible from Pipeline (90d)</div><div class="kpi-value" style="color:var(--navy);">'+rMoney(F.totPossible)+'</div><div class="kpi-sub">weighted by win %, not in net</div></div>'+
     '<div class="kpi-card '+(F.totOver>0?'danger':'')+'"><div class="kpi-label">Overdue</div><div class="kpi-value" style="color:'+(F.totOver>0?'var(--danger)':'var(--text-muted)')+';">'+rMoney(F.totOver)+'</div><div class="kpi-sub">'+F.overdue.length+' item'+(F.overdue.length===1?'':'s')+' past due</div></div>';
-  const srcTag=s=>s==='Scheduled'?'<span class="tag green">Scheduled</span>':'<span class="tag" title="Estimated: '+F.terms+' days after the end date">'+rEsc(s)+'</span>';
+  const srcTag=s=>{if(s==='Scheduled')return'<span class="tag green">Scheduled</span>';if(s==='Undated')return'<span class="tag">Undated</span>';return'<span class="tag" title="Estimated: '+F.terms+' days after the end date">'+rEsc(s)+'</span>';};
   const incTbody=document.getElementById('forecast-income-tbody');
   if(incTbody)incTbody.innerHTML=(F.overdue.length?F.overdue.map(i=>'<tr style="background:rgba(229,57,53,0.05);"><td style="font-weight:500;">'+rEsc(i.label)+'</td><td><span class="tag">'+rEsc(i.type)+'</span></td><td><span style="color:var(--danger);font-weight:700;">'+(i.date?formatDate(i.date)+' · '+daysBetween(i.date,t)+'d late':'overdue')+'</span></td><td style="color:var(--danger);font-weight:700;">'+rMoney(i.amount)+'</td><td><span class="tag" style="background:#fdecea;color:var(--danger);">Overdue</span></td></tr>').join(''):'')+
-    (F.income.length?F.income.map(i=>'<tr><td style="font-weight:500;">'+rEsc(i.label)+'</td><td><span class="tag">'+rEsc(i.type)+'</span></td><td>'+fcDue(i.date,t)+'</td><td style="color:var(--green-dark);font-weight:700;">'+rMoney(i.amount)+'</td><td>'+srcTag(i.source)+'</td></tr>').join('')
-    :(F.overdue.length?'':'<tr><td colspan="5"><div class="empty-state" style="padding:20px;"><div class="empty-icon">💰</div><p>No contracted income expected in the next 90 days.</p></div></td></tr>'));
+    (F.income.length?F.income.map(i=>'<tr><td style="font-weight:500;">'+rEsc(i.label)+'</td><td><span class="tag">'+rEsc(i.type)+'</span></td><td>'+fcDue(i.date,t)+'</td><td style="color:var(--green-dark);font-weight:700;">'+rMoney(i.amount)+'</td><td>'+srcTag(i.source)+'</td></tr>').join(''):'')+
+    (F.undated.length?F.undated.map(i=>'<tr><td style="font-weight:500;">'+rEsc(i.label)+'</td><td><span class="tag">'+rEsc(i.type)+'</span></td><td><span class="tag">Undated</span></td><td style="color:var(--green-dark);font-weight:700;">'+rMoney(i.amount)+'</td><td>'+srcTag('Undated')+'</td></tr>').join(''):'')+
+    (F.overdue.length||F.income.length||F.undated.length?'':'<tr><td colspan="5"><div class="empty-state" style="padding:20px;"><div class="empty-icon">💰</div><p>No contracted income expected in the next 90 days.</p></div></td></tr>');
   const expTbody=document.getElementById('forecast-expense-tbody');
   if(expTbody)expTbody.innerHTML=F.outflow.length?F.outflow.map(e=>'<tr><td style="font-weight:500;">'+rEsc(e.label)+'</td><td><span class="tag">'+rEsc(e.type)+'</span></td><td style="font-size:14px;color:var(--text-muted);">'+rEsc(e.jobLabel)+'</td><td>'+fcDue(e.date,t)+'</td><td style="color:var(--danger);font-weight:700;">'+rMoney(e.amount)+'</td></tr>').join('')
     :'<tr><td colspan="5"><div class="empty-state" style="padding:20px;"><div class="empty-icon">📤</div><p>No expected expenses in the next 90 days.<br><small>Add your recurring bills under Overhead and they will appear here every month.</small></p></div></td></tr>';
@@ -3300,8 +3474,8 @@ function renderForecast(){
 // ── ALERT BADGE ──
 function updateAcctAlertBadge(){
   const t=todayStr();
-  const overdue=(ACCT.jobs||[]).flatMap(j=>(j.payments||[]).filter(p=>p.status!=='Received'&&p.date&&p.date<t)).length;
-  const ohOverdue=(ACCT.overhead||[]).filter(o=>o.status==='active'&&o.due&&o.due<t).length;
+  const overdue=liveJobs().flatMap(j=>livePayments(j).filter(p=>p.status!=='Received'&&p.date&&p.date<t)).length;
+  const ohOverdue=liveOverhead().filter(o=>o.status==='active'&&!overheadIsExcluded(o)&&o.due&&o.due<t).length;
   const total=overdue+ohOverdue;
   const badge=document.getElementById('badge-acct-alerts');
   if(badge){badge.textContent=total;badge.style.display=total?'inline-block':'none';}
@@ -3311,12 +3485,15 @@ function updateAcctAlertBadge(){
 // ─── COMPANY DASHBOARD & CLIENT ACCOUNTS ───
 // Built from the accounting data (jobs, payment schedules, expenses,
 // overhead). Income counts when a scheduled payment is marked Received,
-// on its received date. Overhead uses the recurring overhead list:
-// monthly equivalents for each month, one-time items on their due date.
+// on its received date (paidOn), not the date it was scheduled.
+// Direct costs are expenses classed as job costs. Indirect costs are
+// expenses classed as overhead plus recurring overhead, prorated by the
+// days of the period. Transfers and credit-card payments are not expenses.
 // ═══════════════════════════════════════════════
 function rEsc(s){return String(s===undefined||s===null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function rNum(n){n=parseFloat(n);return isFinite(n)?n:0;}
-function rMoney(n){const v=Math.round(rNum(n));return (v<0?'−$':'$')+Math.abs(v).toLocaleString('en-US');}
+function rMoney(n){const v=Math.round(rNum(n)*100)/100;return (v<0?'−$':'$')+Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function rBalance(n){const v=Math.round(rNum(n)*100)/100;if(v<-0.004)return'Overpaid '+rMoney(-v);return rMoney(v);}
 function rPct(a,b){return b?Math.round(a/b*100)+'%':'—';}
 const R_MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 function rYM(d){return d?d.slice(0,7):'';}
@@ -3333,24 +3510,36 @@ function rPeriod(key){
   return{from:y+'-01-01',to:t,label:'Jan 1 – today, '+y};
 }
 function rEarliest(){
-  const ds=[];(ACCT.jobs||[]).forEach(j=>{(j.payments||[]).forEach(p=>{if(p.status==='Received'&&p.date)ds.push(p.date);});if(j.start)ds.push(j.start);});
-  (ACCT.expenses||[]).forEach(e=>{if(e.date)ds.push(e.date);});
+  const ds=[];liveJobs().forEach(j=>{livePayments(j).forEach(p=>{if(p.status==='Received'){const d=p.paidOn||p.date;if(d)ds.push(d);}});if(j.start)ds.push(j.start);});
+  liveExpenses().forEach(e=>{if(e.date)ds.push(e.date);});
   return ds.filter(Boolean).sort()[0]||'';
 }
 // All money movements as flat lists
 function rLedger(){
-  const jobsById={};(ACCT.jobs||[]).forEach(j=>jobsById[j.id]=j);
-  const income=[];(ACCT.jobs||[]).forEach(j=>(j.payments||[]).forEach(p=>{if(p.status==='Received'&&p.date)income.push({date:p.date,amount:rNum(p.amount),job:j});}));
-  const jobCosts=[],otherCosts=[];
-  (ACCT.expenses||[]).forEach(e=>{if(!e.date)return;const job=e.jobId&&jobsById[e.jobId];(job?jobCosts:otherCosts).push({date:e.date,amount:rNum(e.amount),job:job||null,exp:e});});
-  return{income,jobCosts,otherCosts,jobsById};
+  const jobsById={};liveJobs().forEach(j=>jobsById[j.id]=j);
+  const income=[];liveJobs().forEach(j=>livePayments(j).forEach(p=>{if(p.status!=='Received')return;const date=p.paidOn||p.date||'';if(!date)return;income.push({date,amount:rNum(p.amount),job:j});}));
+  const direct=[],indirect=[];
+  liveExpenses().forEach(e=>{if(!e.date)return;const job=e.jobId&&jobsById[e.jobId]||null;const row={date:e.date,amount:rNum(e.amount),job,exp:e};(expenseCostClass(e)==='direct'?direct:indirect).push(row);});
+  const jobCosts=direct.filter(x=>x.job);
+  return{income,direct,indirect,jobCosts,otherCosts:indirect,jobsById};
 }
+function rDaysInMonth(y,m){return new Date(Date.UTC(y,m,0)).getUTCDate();}
+function rOverlapDays(fromDate,toDate,mStart,mEnd){const s=fromDate>mStart?fromDate:mStart;const e=toDate<mEnd?toDate:mEnd;if(!s||!e||e<s)return 0;return daysBetween(s,e)+1;}
 function rOverheadFor(fromDate,toDate){
-  const months=rMonthsBetween(rYM(fromDate),rYM(toDate));let total=0;
-  (ACCT.overhead||[]).forEach(o=>{
-    if(o.status==='paused')return;
-    if(o.frequency==='one-time'||!['monthly','quarterly','annual'].includes(o.frequency)){if(o.due&&o.due>=fromDate&&o.due<=toDate)total+=rNum(o.amount);return;}
-    total+=getMonthlyEquiv({...o,amount:rNum(o.amount)})*months.length;
+  if(!fromDate||!toDate||fromDate>toDate)return 0;
+  let total=0;
+  liveOverhead().forEach(o=>{
+    if(o.status==='paused'||overheadIsExcluded(o))return;
+    const amt=rNum(o.amount);if(!(amt>0))return;
+    const freq=o.frequency;
+    if(freq!=='monthly'&&freq!=='quarterly'&&freq!=='annual'){if(o.due&&o.due>=fromDate&&o.due<=toDate)total+=amt;return;}
+    const perMonth=freq==='monthly'?amt:freq==='quarterly'?amt/3:amt/12;
+    rMonthsBetween(rYM(fromDate),rYM(toDate)).forEach(ym=>{
+      const [y,m]=ym.split('-').map(Number);const dim=rDaysInMonth(y,m);
+      const mStart=ym+'-01',mEnd=ym+'-'+String(dim).padStart(2,'0');
+      const days=rOverlapDays(fromDate,toDate,mStart,mEnd);
+      if(days>0)total+=perMonth*(days/dim);
+    });
   });
   return total;
 }
@@ -3358,11 +3547,11 @@ function rSum(list,from,to){return list.filter(x=>x.date>=from&&x.date<=to).redu
 function rOpenItems(){
   // everything clients still owe, with how late it is
   const t=todayStr();const items=[];
-  (ACCT.jobs||[]).forEach(j=>{
-    const pays=j.payments||[];
+  liveJobs().forEach(j=>{
+    const pays=livePayments(j);
     pays.forEach(p=>{if(p.status!=='Received'&&rNum(p.amount)>0)items.push({job:j,amount:rNum(p.amount),date:p.date||'',late:p.date?rDaysLate(p.date,t):null,label:p.type||'Payment'});});
     const scheduled=pays.reduce((s,p)=>s+rNum(p.amount),0);
-    const wo=(j.writeOffs||[]).reduce((s,w)=>s+rNum(w.amount),0);
+    const wo=writeOffTotal(j);
     const unscheduled=rNum(j.value)-scheduled-wo;
     if(unscheduled>0.5)items.push({job:j,amount:unscheduled,date:'',late:null,label:'Not yet scheduled'});
   });
@@ -3380,30 +3569,31 @@ function renderCompanyDashboard(){
   const key=(document.getElementById('cd-period')||{value:'ytd'}).value||'ytd';
   const P=rPeriod(key);const L=rLedger();
   document.getElementById('cd-period-label').textContent=P.label;
-  const inc=rSum(L.income,P.from,P.to),jc=rSum(L.jobCosts,P.from,P.to),oc=rSum(L.otherCosts,P.from,P.to),oh=rOverheadFor(P.from,P.to);
-  const net=inc-jc-oc-oh;
+  const inc=rSum(L.income,P.from,P.to),direct=rSum(L.direct,P.from,P.to),indExp=rSum(L.indirect,P.from,P.to),oh=rOverheadFor(P.from,P.to);
+  const indirect=indExp+oh,gross=inc-direct,net=gross-indirect;
   const open=rOpenItems();const owed=open.reduce((s,i)=>s+i.amount,0);const overdue=open.filter(i=>i.late!==null&&i.late>0).reduce((s,i)=>s+i.amount,0);
   const k=(label,val,cls,sub)=>'<div class="kpi-card'+(cls?' '+cls:'')+'"><div class="kpi-label">'+label+'</div><div class="kpi-value">'+val+'</div>'+(sub?'<div style="font-size:13px;color:var(--text-muted);">'+sub+'</div>':'')+'</div>';
   document.getElementById('cd-kpis').innerHTML=
-    k('Income received',rMoney(inc),'green')+
-    k('Job costs',rMoney(jc),'','expenses linked to jobs')+
-    k('Other expenses',rMoney(oc),'','not linked to a job')+
-    k('Overhead (est.)',rMoney(oh),'','from your overhead list')+
+    k('Income received',rMoney(inc),'green','on the date received')+
+    k('Direct costs',rMoney(direct),'','job costs')+
+    k('Gross profit',rMoney(gross),gross>=0?'green':'danger',inc?'margin '+rPct(gross,inc):'')+
+    k('Indirect costs',rMoney(indirect),'','expenses '+rMoney(indExp)+' · overhead '+rMoney(oh))+
     k('Net profit','<span style="color:'+(net>=0?'var(--green-dark)':'var(--danger)')+'">'+rMoney(net)+'</span>',net>=0?'green':'danger',inc?'margin '+rPct(net,inc):'')+
     k('Owed to you',rMoney(owed),'warning',overdue?'<span style="color:var(--danger)">'+rMoney(overdue)+' overdue</span>':'nothing overdue');
   // month by month
   const ySel=document.getElementById('cd-year');const thisY=+todayStr().slice(0,4);
   const firstY=+((rEarliest()||todayStr()).slice(0,4));const cur=ySel.value?+ySel.value:thisY;
   let opts='';for(let y=thisY;y>=Math.min(firstY,thisY);y--)opts+='<option value="'+y+'"'+(y===cur?' selected':'')+'>'+y+'</option>';ySel.innerHTML=opts;
-  let rows='<thead><tr><th>Month</th><th>Income</th><th>Job costs</th><th>Other exp.</th><th>Overhead (est.)</th><th>Net</th></tr></thead><tbody>';
-  const tot=[0,0,0,0,0];const nowYM=todayStr().slice(0,7);
+  let rows='<thead><tr><th>Month</th><th>Income</th><th>Direct</th><th>Indirect</th><th>Net</th></tr></thead><tbody>';
+  const tot=[0,0,0,0];const nowYM=todayStr().slice(0,7);const today=todayStr();
   for(let m=1;m<=12;m++){
     const ym=cur+'-'+String(m).padStart(2,'0');if(ym>nowYM)break;
-    const f=ym+'-01',t=ym+'-31';const a=rSum(L.income,f,t),b=rSum(L.jobCosts,f,t),c=rSum(L.otherCosts,f,t),d=rOverheadFor(f,t),n=a-b-c-d;
-    [a,b,c,d,n].forEach((v,i)=>tot[i]+=v);
-    rows+='<tr><td>'+R_MONTHS[m-1]+'</td><td>'+rMoney(a)+'</td><td>'+rMoney(b)+'</td><td>'+rMoney(c)+'</td><td>'+rMoney(d)+'</td><td style="font-weight:600;color:'+(n>=0?'var(--green-dark)':'var(--danger)')+'">'+rMoney(n)+'</td></tr>';
+    const f=ym+'-01',t=ym===nowYM?today:(ym+'-'+String(rDaysInMonth(+ym.slice(0,4),+ym.slice(5,7))).padStart(2,'0'));
+    const a=rSum(L.income,f,t),b=rSum(L.direct,f,t),c=rSum(L.indirect,f,t)+rOverheadFor(f,t),n=a-b-c;
+    [a,b,c,n].forEach((v,i)=>tot[i]+=v);
+    rows+='<tr><td>'+R_MONTHS[m-1]+'</td><td>'+rMoney(a)+'</td><td>'+rMoney(b)+'</td><td>'+rMoney(c)+'</td><td style="font-weight:600;color:'+(n>=0?'var(--green-dark)':'var(--danger)')+'">'+rMoney(n)+'</td></tr>';
   }
-  rows+='<tr style="font-weight:700;border-top:2px solid var(--border);"><td>Total</td>'+tot.map((v,i)=>'<td'+(i===4?' style="color:'+(v>=0?'var(--green-dark)':'var(--danger)')+'"':'')+'>'+rMoney(v)+'</td>').join('')+'</tr></tbody>';
+  rows+='<tr style="font-weight:700;border-top:2px solid var(--border);"><td>Total</td>'+tot.map((v,i)=>'<td'+(i===3?' style="color:'+(v>=0?'var(--green-dark)':'var(--danger)')+'"':'')+'>'+rMoney(v)+'</td>').join('')+'</tr></tbody>';
   document.getElementById('cd-monthly').innerHTML=rows;
   // aging
   const ag=rAging(open);const agMax=Math.max(...ag.map(x=>x.v),1);
@@ -3426,18 +3616,19 @@ function renderCompanyDashboard(){
   L.income.filter(x=>x.date>=P.from&&x.date<=P.to).forEach(x=>{const n=(x.job.category||'Other')+(x.job.subcat?' — '+x.job.subcat:'');(lines[n]=lines[n]||{inc:0,cost:0}).inc+=x.amount;});
   L.jobCosts.filter(x=>x.date>=P.from&&x.date<=P.to).forEach(x=>{const n=(x.job.category||'Other')+(x.job.subcat?' — '+x.job.subcat:'');(lines[n]=lines[n]||{inc:0,cost:0}).cost+=x.amount;});
   const lr=Object.entries(lines).sort((a,b)=>b[1].inc-a[1].inc);
-  document.getElementById('cd-lines').innerHTML='<thead><tr><th>Service line</th><th>Received</th><th>Job costs</th><th>Margin</th></tr></thead><tbody>'+
+  document.getElementById('cd-lines').innerHTML='<thead><tr><th>Service line</th><th>Received</th><th>Direct costs</th><th>Gross margin</th></tr></thead><tbody>'+
     (lr.length?lr.map(([n,v])=>'<tr><td>'+rEsc(n)+'</td><td>'+rMoney(v.inc)+'</td><td>'+rMoney(v.cost)+'</td><td>'+rPct(v.inc-v.cost,v.inc)+'</td></tr>').join(''):'<tr><td colspan="4" style="color:var(--text-muted);">No activity in this period.</td></tr>')+'</tbody>';
-  document.getElementById('cd-footnote').textContent='Income counts when a payment is marked Received. Overhead is estimated from your overhead list. Figures cover what has been entered in the app'+(rEarliest()?' (from '+rEarliest()+').':'.');
+  document.getElementById('cd-footnote').textContent='Income counts on the date a payment is received. Direct costs are job costs; a job-linked expense is direct unless you mark it indirect. Indirect costs add those expenses to overhead, prorated by the days in the period. Transfers and credit-card payments are left out. The current month runs through today. Figures cover what has been entered in the app'+(rEarliest()?' (from '+rEarliest()+').':'.');
 }
 
 function rClients(){
   const t=todayStr();const map={};const L=rLedger();
-  (ACCT.jobs||[]).forEach(j=>{
-    const k=rClientKey(j.org);const c=map[k]=map[k]||{key:k,names:{},jobs:[],contracted:0,received:0,outstanding:0,overdue:0,costs:0,lastPaid:''};
+  liveJobs().forEach(j=>{
+    const k=rClientKey(j.org);const c=map[k]=map[k]||{key:k,names:{},jobs:[],contracted:0,received:0,outstanding:0,credit:0,overdue:0,costs:0,lastPaid:''};
     c.names[j.org||'(no client)']=(c.names[j.org||'(no client)']||0)+1;c.jobs.push(j);
-    c.contracted+=rNum(j.value);c.received+=getJobReceived(j);c.outstanding+=getJobBalance(j);
-    (j.payments||[]).forEach(p=>{if(p.status==='Received'&&p.date&&p.date>c.lastPaid)c.lastPaid=p.date;if(p.status!=='Received'&&p.date&&p.date<t)c.overdue+=rNum(p.amount);});
+    c.contracted+=rNum(j.value);c.received+=getJobReceived(j);
+    const bal=getJobBalance(j);if(bal>0.004)c.outstanding+=bal;else if(bal<-0.004)c.credit+=-bal;
+    livePayments(j).forEach(p=>{const paid=p.status==='Received'?(p.paidOn||p.date):'';if(paid&&paid>c.lastPaid)c.lastPaid=paid;if(p.status!=='Received'&&p.date&&p.date<t)c.overdue+=rNum(p.amount);});
   });
   L.jobCosts.forEach(x=>{const k=rClientKey(x.job.org);if(map[k])map[k].costs+=x.amount;});
   Object.values(map).forEach(c=>{const score=([n,cnt])=>cnt*10+(/[A-Z]/.test(n)?2:0)+(n===n.trim()?1:0);c.name=Object.entries(c.names).sort((a,b)=>score(b)-score(a))[0][0].trim();});
@@ -3453,23 +3644,24 @@ function renderClientAccounts(){
   const all=Object.values(map);const sum=fn=>all.reduce((s,c)=>s+fn(c),0);
   const k=(l,v,cls)=>'<div class="kpi-card'+(cls?' '+cls:'')+'"><div class="kpi-label">'+l+'</div><div class="kpi-value">'+v+'</div></div>';
   document.getElementById('ca-kpis').innerHTML=k('Clients',all.length)+k('Contracted',rMoney(sum(c=>c.contracted)),'green')+k('Received',rMoney(sum(c=>c.received)),'green')+k('Outstanding',rMoney(sum(c=>c.outstanding)),'warning')+k('Overdue',rMoney(sum(c=>c.overdue)),sum(c=>c.overdue)>0?'danger':'');
-  document.getElementById('ca-table').innerHTML='<thead><tr><th>Client</th><th>Jobs</th><th>Contracted</th><th>Received</th><th>Outstanding</th><th>Job costs</th><th>Margin</th><th>Last payment</th></tr></thead><tbody>'+
-    (list.length?list.map(c=>'<tr style="cursor:pointer;" onclick="openClientAccount(\''+rEsc(c.key).replace(/\\/g,'\\\\')+'\')"><td style="font-weight:600;color:var(--navy);">'+rEsc(c.name)+'</td><td>'+c.jobs.length+'</td><td>'+rMoney(c.contracted)+'</td><td>'+rMoney(c.received)+'</td><td>'+(c.outstanding>0.5?'<span style="color:'+(c.overdue>0.5?'var(--danger)':'var(--warning)')+';font-weight:600;">'+rMoney(c.outstanding)+'</span>':'—')+'</td><td>'+rMoney(c.costs)+'</td><td>'+rPct(c.received-c.costs,c.received)+'</td><td>'+(c.lastPaid?formatDate(c.lastPaid):'—')+'</td></tr>').join('')
+  document.getElementById('ca-table').innerHTML='<thead><tr><th>Client</th><th>Jobs</th><th>Contracted</th><th>Received</th><th>Outstanding</th><th>Direct costs</th><th>Gross margin</th><th>Last payment</th></tr></thead><tbody>'+
+    (list.length?list.map(c=>{const owedCell=c.outstanding>0.5?'<span style="color:'+(c.overdue>0.5?'var(--danger)':'var(--warning)')+';font-weight:600;">'+rMoney(c.outstanding)+'</span>':(c.credit>0.5?'<span style="color:var(--info);font-weight:600;">Overpaid '+rMoney(c.credit)+'</span>':'—');return '<tr style="cursor:pointer;" onclick="openClientAccount(\''+rEsc(c.key).replace(/\\/g,'\\\\')+'\')"><td style="font-weight:600;color:var(--navy);">'+rEsc(c.name)+'</td><td>'+c.jobs.length+'</td><td>'+rMoney(c.contracted)+'</td><td>'+rMoney(c.received)+'</td><td>'+owedCell+'</td><td>'+rMoney(c.costs)+'</td><td>'+rPct(c.received-c.costs,c.received)+'</td><td>'+(c.lastPaid?formatDate(c.lastPaid):'—')+'</td></tr>';}).join('')
     :'<tr><td colspan="8" style="color:var(--text-muted);padding:18px;">'+(all.length?'No clients match.':'No jobs yet. Clients appear here once you add jobs under Jobs / Revenue.')+'</td></tr>')+'</tbody>';
 }
 function openClientAccount(key){
   const c=rClients()[key];if(!c)return;const t=todayStr();
   const k=(l,v,cls)=>'<div class="kpi-card'+(cls?' '+cls:'')+'"><div class="kpi-label">'+l+'</div><div class="kpi-value">'+v+'</div></div>';
-  let h='<div class="kpi-grid" style="margin-bottom:16px;">'+k('Contracted',rMoney(c.contracted),'green')+k('Received',rMoney(c.received),'green')+k('Outstanding',rMoney(c.outstanding),c.overdue>0.5?'danger':'warning')+k('Job costs',rMoney(c.costs))+k('Margin',rPct(c.received-c.costs,c.received))+'</div>';
-  h+='<div style="font-weight:700;font-size:15px;margin-bottom:8px;color:var(--navy);">Jobs</div><div style="overflow-x:auto;"><table class="data-table" style="margin-bottom:18px;"><thead><tr><th>Project</th><th>Dates</th><th>Contract</th><th>Received</th><th>Balance</th><th>Costs</th><th>Status</th></tr></thead><tbody>'+
-    c.jobs.slice().sort((a,b)=>(b.start||'').localeCompare(a.start||'')).map(j=>'<tr style="cursor:pointer;" onclick="closeModal(\'modal-client-account\');openJobDetail(\''+rEsc(j.id)+'\')"><td>'+rEsc(j.project||'(no project)')+'</td><td>'+(j.start?formatDate(j.start):'—')+(j.end?' – '+formatDate(j.end):'')+'</td><td>'+rMoney(j.value)+'</td><td>'+rMoney(getJobReceived(j))+'</td><td>'+rMoney(getJobBalance(j))+'</td><td>'+rMoney(getJobExpenses(j.id))+'</td><td><span class="tag">'+rEsc(getJobStatus(j))+'</span></td></tr>').join('')+'</tbody></table></div>';
-  const pays=[];c.jobs.forEach(j=>(j.payments||[]).forEach(p=>pays.push({j,p})));
-  pays.sort((a,b)=>(b.p.date||'9999').localeCompare(a.p.date||'9999'));
+  const owedLabel=c.outstanding>0.5?rMoney(c.outstanding):(c.credit>0.5?('Overpaid '+rMoney(c.credit)):rMoney(0));
+  let h='<div class="kpi-grid" style="margin-bottom:16px;">'+k('Contracted',rMoney(c.contracted),'green')+k('Received',rMoney(c.received),'green')+k('Outstanding',owedLabel,c.overdue>0.5?'danger':(c.credit>0.5?'':'warning'))+k('Direct costs',rMoney(c.costs))+k('Gross margin',rPct(c.received-c.costs,c.received))+'</div>';
+  h+='<div style="font-weight:700;font-size:15px;margin-bottom:8px;color:var(--navy);">Jobs</div><div style="overflow-x:auto;"><table class="data-table" style="margin-bottom:18px;"><thead><tr><th>Project</th><th>Dates</th><th>Contract</th><th>Received</th><th>Balance</th><th>Direct</th><th>Status</th></tr></thead><tbody>'+
+    c.jobs.slice().sort((a,b)=>(b.start||'').localeCompare(a.start||'')).map(j=>'<tr style="cursor:pointer;" onclick="closeModal(\'modal-client-account\');openJobDetail(\''+rEsc(j.id)+'\')"><td>'+rEsc(j.project||'(no project)')+'</td><td>'+(j.start?formatDate(j.start):'—')+(j.end?' – '+formatDate(j.end):'')+'</td><td>'+rMoney(j.value)+'</td><td>'+rMoney(getJobReceived(j))+'</td><td>'+rBalance(getJobBalance(j))+'</td><td>'+rMoney(getJobDirectCosts(j.id))+'</td><td><span class="tag">'+rEsc(getJobStatus(j))+'</span></td></tr>').join('')+'</tbody></table></div>';
+  const pays=[];c.jobs.forEach(j=>livePayments(j).forEach(p=>pays.push({j,p})));
+  pays.sort((a,b)=>((b.p.status==='Received'?(b.p.paidOn||b.p.date):b.p.date)||'9999').localeCompare((a.p.status==='Received'?(a.p.paidOn||a.p.date):a.p.date)||'9999'));
   h+='<div style="font-weight:700;font-size:15px;margin-bottom:8px;color:var(--navy);">Payment history and schedule</div><div style="overflow-x:auto;"><table class="data-table" style="margin-bottom:18px;"><thead><tr><th>Date</th><th>Project</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead><tbody>'+
-    (pays.length?pays.map(({j,p})=>{const late=p.status!=='Received'&&p.date&&p.date<t;return'<tr><td>'+(p.date?formatDate(p.date):'—')+'</td><td>'+rEsc(j.project)+'</td><td>'+rEsc(p.type)+'</td><td>'+rMoney(p.amount)+'</td><td>'+(p.status==='Received'?'<span class="tag green">Received</span>':'<span class="tag"'+(late?' style="background:#fdecea;color:var(--danger);"':'')+'>'+rEsc(p.status)+(late?' · '+rDaysLate(p.date,t)+'d late':'')+'</span>')+'</td></tr>';}).join(''):'<tr><td colspan="5" style="color:var(--text-muted);">No payments scheduled yet.</td></tr>')+'</tbody></table></div>';
-  const ids=new Set(c.jobs.map(j=>j.id));const exps=(ACCT.expenses||[]).filter(e=>ids.has(e.jobId)).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-  h+='<div style="font-weight:700;font-size:15px;margin-bottom:8px;color:var(--navy);">Job expenses</div><div style="overflow-x:auto;"><table class="data-table" style="margin-bottom:18px;"><thead><tr><th>Date</th><th>Description</th><th>Type</th><th>Vendor</th><th>Amount</th></tr></thead><tbody>'+
-    (exps.length?exps.map(e=>'<tr><td>'+(e.date?formatDate(e.date):'—')+'</td><td>'+rEsc(e.desc)+'</td><td>'+rEsc(e.type)+'</td><td>'+rEsc(e.vendor||'—')+'</td><td>'+rMoney(e.amount)+'</td></tr>').join(''):'<tr><td colspan="5" style="color:var(--text-muted);">No expenses linked to these jobs.</td></tr>')+'</tbody></table></div>';
+    (pays.length?pays.map(({j,p})=>{const late=p.status!=='Received'&&p.date&&p.date<t;const when=p.status==='Received'?(p.paidOn||p.date):(p.date||'');const sched=p.status==='Received'&&p.date&&p.paidOn&&p.date!==p.paidOn?' <span style="color:var(--text-muted);font-size:12px;">scheduled '+formatDate(p.date)+'</span>':'';return'<tr><td>'+(when?formatDate(when):'—')+sched+'</td><td>'+rEsc(j.project)+'</td><td>'+rEsc(p.type)+'</td><td>'+rMoney(p.amount)+'</td><td>'+(p.status==='Received'?'<span class="tag green">Received</span>':'<span class="tag"'+(late?' style="background:#fdecea;color:var(--danger);"':'')+'>'+rEsc(p.status)+(late?' · '+rDaysLate(p.date,t)+'d late':'')+'</span>')+'</td></tr>';}).join(''):'<tr><td colspan="5" style="color:var(--text-muted);">No payments scheduled yet.</td></tr>')+'</tbody></table></div>';
+  const ids=new Set(c.jobs.map(j=>j.id));const exps=liveExpenses().filter(e=>ids.has(e.jobId)).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  h+='<div style="font-weight:700;font-size:15px;margin-bottom:8px;color:var(--navy);">Job expenses</div><div style="overflow-x:auto;"><table class="data-table" style="margin-bottom:18px;"><thead><tr><th>Date</th><th>Description</th><th>Type</th><th>Class</th><th>Vendor</th><th>Amount</th></tr></thead><tbody>'+
+    (exps.length?exps.map(e=>'<tr><td>'+(e.date?formatDate(e.date):'—')+'</td><td>'+rEsc(e.desc)+'</td><td>'+rEsc(e.type)+'</td><td>'+rEsc(classLabel(expenseCostClass(e)))+'</td><td>'+rEsc(e.vendor||'—')+'</td><td>'+rMoney(e.amount)+'</td></tr>').join(''):'<tr><td colspan="6" style="color:var(--text-muted);">No expenses linked to these jobs.</td></tr>')+'</tbody></table></div>';
   h+='<div style="font-size:13px;color:var(--text-muted);">Invoices will appear here once invoicing is built.</div>';
   document.getElementById('client-account-title').textContent=c.name;
   document.getElementById('client-account-body').innerHTML=h;
@@ -3503,7 +3695,7 @@ function fdGuessSubcat(cat,t){
   return'Corporate Training';
 }
 function fdHasJob(d){
-  const jobs=ACCT.jobs||[];
+  const jobs=liveJobs();
   if(jobs.some(j=>j.dealId===d.id))return true;
   return jobs.some(j=>!j.dealId&&CV.norm(j.project)===CV.norm(d.title)&&CV.norm(j.org)===CV.norm(d.org));
 }
@@ -3540,7 +3732,7 @@ function createJobsFromDeals(){
     ACCT.jobs.unshift({id:acctUID(),dealId:d.id,org:d.org||'',project:d.title||'',value:parseFloat(d.value)||0,
       category:document.getElementById('fd-cat-'+i).value,subcat:document.getElementById('fd-sub-'+i).value,
       contact:d.contact||'',start:d.startDate||'',end:d.closeDate||'',notes:'Created from Production project',writeOffs:[],created:Date.now(),
-      payments:d.stage==='Paid/Closed'&&parseFloat(d.value)>0?[{id:acctUID(),type:'Paid in full',amount:parseFloat(d.value)||0,date:ppPaidDate(d,{end:d.closeDate,start:d.startDate}),status:'Received',notes:'Marked paid: project is Paid/Closed'}]:[]});
+      payments:d.stage==='Paid/Closed'&&parseFloat(d.value)>0?[{id:acctUID(),type:'Paid in full',amount:round2(d.value),date:'',paidOn:ppPaidDate(d,{end:d.closeDate,start:d.startDate}),status:'Received',notes:'Marked paid: project is Paid/Closed'}]:[]});
     n++;
   });
   if(!n){toast('Nothing ticked.',true);return;}
@@ -3551,7 +3743,7 @@ function createJobsFromDeals(){
 // ─── "NEW VERSION AVAILABLE" BANNER ───
 // Checks the published app every 5 minutes (and when you come back to the
 // tab). If a newer version has been uploaded, offers a one-click update.
-const APP_BUILD='20260927151154';
+const APP_BUILD='20261125221500';
 let appUpdateShown=false;
 async function checkForAppUpdate(){
   if(appUpdateShown||!window.fetch||location.protocol==='file:')return;
@@ -3588,18 +3780,35 @@ function ppDealFor(j){
   return all.find(d=>CV.norm(d.title)===CV.norm(j.project)&&CV.norm(d.org)===CV.norm(j.org))||null;
 }
 function ppPaidDate(d,j){
-  const ms=d&&d.stageEnteredAt;if(ms){const s=new Date(ms);if(!isNaN(s))return s.toISOString().slice(0,10);}
+  const ms=d&&d.stageEnteredAt;if(ms){const s=localDateStr(ms);if(s)return s;}
   return j.end||j.start||todayStr();
 }
 function ppCandidates(){
-  return(ACCT.jobs||[]).map(j=>{const d=ppDealFor(j);return{j,d,bal:getJobBalance(j)};})
+  return liveJobs().map(j=>{const d=ppDealFor(j);return{j,d,bal:getJobBalance(j)};})
     .filter(x=>x.d&&x.d.stage==='Paid/Closed'&&x.bal>0.5);
+}
+function settleJobPaid(job,date,note){
+  let remaining=round2(getJobBalance(job));
+  if(!(remaining>0.005))return 0;
+  const settled=remaining;
+  livePayments(job).filter(p=>p.status!=='Received'&&round2(p.amount)>0).forEach(p=>{
+    const amt=round2(p.amount);
+    if(remaining<=0.005){p.deleted=true;return;}
+    if(amt<=remaining+0.005){p.status='Received';p.paidOn=date;remaining=round2(remaining-amt);return;}
+    p.notes=((p.notes?p.notes+' · ':'')+'Marked paid for '+fmtAmt(remaining)+'; scheduled amount was '+fmtAmt(amt)+'.');
+    p.amount=remaining;p.status='Received';p.paidOn=date;remaining=0;
+  });
+  if(remaining>0.005){
+    if(!job.payments)job.payments=[];
+    job.payments.push({id:acctUID(),type:'Paid in full',amount:remaining,date:'',paidOn:date,status:'Received',notes:note||'Marked paid: project is Paid/Closed'});
+  }
+  return settled;
 }
 function openMarkPaidJobs(){
   const list=ppCandidates();const body=document.getElementById('pp-body');
   if(!list.length){body.innerHTML='<div style="color:var(--text-muted);padding:10px 0;">No jobs need this. Every job whose project is Paid/Closed is already marked paid.</div>';document.getElementById('pp-save').disabled=true;openModal('modal-mark-paid-jobs');return;}
   document.getElementById('pp-save').disabled=false;
-  body.innerHTML='<p style="font-size:14px;color:var(--text-muted);margin:0 0 10px;">These jobs belong to projects in <strong>Paid/Closed</strong> but still show a balance. Saving records one <strong>Received</strong> "Paid in full" payment for each balance. The date is when the project moved to Paid/Closed; change it if you know the real payment date. The Wave import can correct dates later.</p>'+
+  body.innerHTML='<p style="font-size:14px;color:var(--text-muted);margin:0 0 10px;">These jobs belong to projects in <strong>Paid/Closed</strong> but still show a balance. Saving marks the open schedule lines received, keeps each scheduled date, and adds a received payment only for any amount that was never scheduled. Extra schedule lines that would still look unpaid are removed from receivables. The date is when the project moved to Paid/Closed; change it if you know the real payment date.</p>'+
     '<div style="overflow-x:auto;"><table class="data-table"><thead><tr><th></th><th>Job</th><th>Client</th><th>Balance</th><th>Paid on</th></tr></thead><tbody>'+
     list.map((x,i)=>'<tr id="pp-row-'+i+'" data-id="'+rEsc(x.j.id)+'"><td><input type="checkbox" id="pp-pick-'+i+'" checked></td><td style="font-weight:600;">'+rEsc(x.j.project)+'</td><td>'+rEsc(x.j.org)+'</td><td>'+rMoney(x.bal)+'</td><td><input type="date" class="form-control" id="pp-date-'+i+'" value="'+ppPaidDate(x.d,x.j)+'" style="max-width:170px;"></td></tr>').join('')+
     '</tbody></table></div>';
@@ -3611,9 +3820,9 @@ function saveMarkPaidJobs(){
     const pick=document.getElementById('pp-pick-'+i);const row=document.getElementById('pp-row-'+i);
     if(!pick||!pick.checked||!row||row.dataset.id!==x.j.id)return;
     const date=(document.getElementById('pp-date-'+i)||{}).value||ppPaidDate(x.d,x.j);
-    if(!x.j.payments)x.j.payments=[];
-    x.j.payments.push({id:acctUID(),type:'Paid in full',amount:Math.round(x.bal*100)/100,date,status:'Received',notes:'Marked paid: project is Paid/Closed'});
-    n++;total+=x.bal;
+    const settled=settleJobPaid(x.j,date,'Marked paid: project is Paid/Closed');
+    if(!(settled>0))return;
+    n++;total+=settled;
   });
   if(!n){toast('Nothing ticked.',true);return;}
   saveAcct();closeModal('modal-mark-paid-jobs');renderJobsView();try{renderForecast();updateAcctAlertBadge();}catch(e){}
